@@ -8,8 +8,6 @@ import {
   PlatformConfig,
   Service,
 } from 'homebridge';
-import axios from 'axios';
-import cheerio from 'cheerio';
 import SmartAppApi from './smart-app';
 import DehumidifierAccessory from './accessories/dehumidifier';
 import PanasonicPlatformLogger from './logger';
@@ -22,9 +20,9 @@ import {
 } from './settings';
 
 enum SupportDeviceType {
-  AC = "1",
-  WashMachine = "3",
-  Dehumidifier = "4"
+  AC = '1',
+  WashMachine = '3',
+  Dehumidifier = '4'
 }
 
 
@@ -151,17 +149,17 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
     this.accessories.push(accessory);
   }
 
-  isSupportedDevice(deviceType: string):boolean {
-    
-    switch(deviceType){
+  isSupportedDevice(deviceType: string): boolean {
+
+    switch (deviceType) {
       case SupportDeviceType.Dehumidifier:
-        
+
         return true;
-      
+
       default:
       case SupportDeviceType.AC:
       case SupportDeviceType.WashMachine:
-      
+
         return false;
     }
 
@@ -186,9 +184,9 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
       for (const device of smartAppDevices) {
 
         // Check if the device is supported
-        if(!this.isSupportedDevice(device.DeviceType)){
-          this.log.info(`Skipping unsupported device '${device.NickName}' with ${device.DeviceType}`);
-          continue
+        if (!this.isSupportedDevice(device.DeviceType)) {
+          this.log.info(`Skipping unsupport device '${device.NickName}' with ${device.DeviceType}`);
+          continue;
         }
 
         // Generate a unique id for the accessory.
@@ -211,9 +209,9 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
           this.api.updatePlatformAccessories([existingAccessory]);
 
           // Create the accessory handler for the restored accessory
-          
-          this.createPanasonicAccessory(device.DeviceType, this, existingAccessory);        
-        
+
+          this.createPanasonicAccessory(device.DeviceType, this, existingAccessory);
+
         } else {
           this.log.info(`Adding accessory '${device.NickName}' (${device.GWID}).`);
           // The accessory does not yet exist, so we need to create it
@@ -257,9 +255,12 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
     }
   }
 
-  createPanasonicAccessory(deviceType:String, platform: PanasonicPlatform, accessory: PlatformAccessory<PanasonicAccessoryContext>) {
-    
-    switch(deviceType){
+  createPanasonicAccessory(
+    deviceType: string,
+    platform: PanasonicPlatform,
+    accessory: PlatformAccessory<PanasonicAccessoryContext>) {
+
+    switch (deviceType) {
       case SupportDeviceType.Dehumidifier:
         new DehumidifierAccessory(platform, accessory);
         break;
