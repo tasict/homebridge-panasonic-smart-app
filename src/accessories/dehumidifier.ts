@@ -400,8 +400,16 @@ export default class DehumidifierAccessory {
 
   async getHumidifierDehumidifierState():Promise<CharacteristicValue> {
   
-    const value:number = this.getDeviceInfoNumber(DehumidifierCommandType.Power);
-    return value === 1 ? this.platform.Characteristic.CurrentHumidifierDehumidifierState.DEHUMIDIFYING : this.platform.Characteristic.CurrentHumidifierDehumidifierState.INACTIVE;
+    const power:number = this.getDeviceInfoNumber(DehumidifierCommandType.Power);
+    const humidity:number = this.getDeviceInfoNumber(DehumidifierCommandType.Humidity);
+    const targetHumidity:number = this.getDeviceInfoNumber(DehumidifierCommandType.TargetHumidity) * 5 + 40;
+
+    if(power === 0){
+      return this.platform.Characteristic.CurrentHumidifierDehumidifierState.INACTIVE;
+    }
+
+
+    return humidity > targetHumidity ? this.platform.Characteristic.CurrentHumidifierDehumidifierState.DEHUMIDIFYING : this.platform.Characteristic.CurrentHumidifierDehumidifierState.IDLE;
   
   }
 

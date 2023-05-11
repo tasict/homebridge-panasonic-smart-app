@@ -10,6 +10,7 @@ import {
 } from 'homebridge';
 import SmartAppApi from './smart-app';
 import DehumidifierAccessory from './accessories/dehumidifier';
+import ClimateAccessory from './accessories/climate';
 import PanasonicPlatformLogger from './logger';
 import { PanasonicAccessoryContext, PanasonicPlatformConfig } from './types';
 import {
@@ -20,7 +21,7 @@ import {
 } from './settings';
 
 enum SupportDeviceType {
-  AC = '1',
+  Climate = '1',
   WashMachine = '3',
   Dehumidifier = '4'
 }
@@ -153,13 +154,12 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
 
     switch (deviceType) {
       case SupportDeviceType.Dehumidifier:
+      case SupportDeviceType.Climate:
 
         return true;
 
       default:
-      case SupportDeviceType.AC:
       case SupportDeviceType.WashMachine:
-
         return false;
     }
 
@@ -263,6 +263,9 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
     switch (deviceType) {
       case SupportDeviceType.Dehumidifier:
         new DehumidifierAccessory(platform, accessory);
+        break;
+      case SupportDeviceType.Climate:
+        new ClimateAccessory(platform, accessory);
         break;
       default:
         this.log.info(`Skipping unsupported deviceType: '${deviceType}' `);
