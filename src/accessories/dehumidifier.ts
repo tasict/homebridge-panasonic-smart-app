@@ -134,7 +134,12 @@ export default class DehumidifierAccessory {
 
     this.services['HumidifierDehumidifier']
       .getCharacteristic(this.platform.Characteristic.CurrentHumidifierDehumidifierState)
-      .setProps({ validValues: [this.platform.Characteristic.CurrentHumidifierDehumidifierState.INACTIVE, this.platform.Characteristic.CurrentHumidifierDehumidifierState.DEHUMIDIFYING	] })
+      .setProps({ validValues: [
+        this.platform.Characteristic.CurrentHumidifierDehumidifierState.INACTIVE, 
+        this.platform.Characteristic.CurrentHumidifierDehumidifierState.DEHUMIDIFYING,
+      	this.platform.Characteristic.CurrentHumidifierDehumidifierState.IDLE,
+        ]
+      })
       .onGet(this.getHumidifierDehumidifierState.bind(this));
 
     this.services['HumidifierDehumidifier']

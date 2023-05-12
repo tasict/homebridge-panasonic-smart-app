@@ -1,7 +1,7 @@
 {
   "name": "homebridge-panasonic-smart-app",
   "displayName": "Homebridge Panasonic Smart App Platform",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Homebridge platform plugin providing HomeKit support for Panasonic Smart Devices.",
   "license": "Apache-2.0",
   "repository": {

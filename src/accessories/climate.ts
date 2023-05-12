@@ -111,7 +111,7 @@ export default class ClimateAccessory {
     .setProps({
       minValue: 16,
       maxValue: 30,
-      minStep: 0.5,
+      minStep: 1,
     })
     .onSet(this.setCoolingThresholdTemperature.bind(this));
 
