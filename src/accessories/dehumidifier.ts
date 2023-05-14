@@ -147,7 +147,7 @@ export default class DehumidifierAccessory {
       .setProps({
         minValue: 40,
         maxValue: 70,
-        minStep: 5,
+        minStep: 1,
       })
       .onSet(this.setRelativeHumidityDehumidifierThreshold.bind(this))
       .onGet(this.getRelativeHumidityDehumidifierThreshold.bind(this));
@@ -422,7 +422,7 @@ export default class DehumidifierAccessory {
 
     this.platform.log.debug(`Accessory: setRelativeHumidityDehumidifierThreshold() for device '${this.accessory.displayName}' '${value}' `);
 
-    const threshold:number = (Math.round((+value) / 5) * 5) - 40;  
+    const threshold:number = (Math.round(Math.min(Math.max(+value, 40), 70) / 5) * 5) - 40;  
 
     this.sendCommandToDevice(
       this.accessory.context.device, DehumidifierCommandType.TargetHumidity, threshold.toString());
@@ -433,7 +433,7 @@ export default class DehumidifierAccessory {
 
   async getRelativeHumidityDehumidifierThreshold():Promise<CharacteristicValue> {
 
-    const value:number = (this.getDeviceInfoNumber(DehumidifierCommandType.TargetHumidity) * 5) + 40;
+    const value:number = Math.round((this.getDeviceInfoNumber(DehumidifierCommandType.TargetHumidity) * 5)) + 40;
 
     this.platform.log.debug(`Accessory: getRelativeHumidityDehumidifierThreshold() for device '${this.accessory.displayName}' - '${value}'`);
 
