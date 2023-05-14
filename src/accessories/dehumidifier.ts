@@ -407,7 +407,7 @@ export default class DehumidifierAccessory {
   
     const power:number = this.getDeviceInfoNumber(DehumidifierCommandType.Power);
     const humidity:number = this.getDeviceInfoNumber(DehumidifierCommandType.Humidity);
-    const targetHumidity:number = this.getDeviceInfoNumber(DehumidifierCommandType.TargetHumidity) * 5 + 40;
+    const targetHumidity:number = (this.getDeviceInfoNumber(DehumidifierCommandType.TargetHumidity) * 5) + 40;
 
     if(power === 0){
       return this.platform.Characteristic.CurrentHumidifierDehumidifierState.INACTIVE;
@@ -420,9 +420,9 @@ export default class DehumidifierAccessory {
 
   async setRelativeHumidityDehumidifierThreshold(value: CharacteristicValue) {
 
-    this.platform.log.debug(`Accessory: setRelativeHumidityDehumidifierThreshold() for device '${this.accessory.displayName}'`);
+    this.platform.log.debug(`Accessory: setRelativeHumidityDehumidifierThreshold() for device '${this.accessory.displayName}' '${value}' `);
 
-    const threshold:number = +value - 40;
+    const threshold:number = (Math.round((+value) / 5) * 5) - 40;  
 
     this.sendCommandToDevice(
       this.accessory.context.device, DehumidifierCommandType.TargetHumidity, threshold.toString());
@@ -433,7 +433,10 @@ export default class DehumidifierAccessory {
 
   async getRelativeHumidityDehumidifierThreshold():Promise<CharacteristicValue> {
 
-    const value:number = this.getDeviceInfoNumber(DehumidifierCommandType.TargetHumidity) * 5 + 40;
+    const value:number = (this.getDeviceInfoNumber(DehumidifierCommandType.TargetHumidity) * 5) + 40;
+
+    this.platform.log.debug(`Accessory: getRelativeHumidityDehumidifierThreshold() for device '${this.accessory.displayName}' - '${value}'`);
+
     
     return value;
   
