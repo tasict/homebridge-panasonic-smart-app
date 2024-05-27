@@ -11,6 +11,8 @@ import {
 import SmartAppApi from './smart-app';
 import DehumidifierAccessory from './accessories/dehumidifier';
 import ClimateAccessory from './accessories/climate';
+import AirPurifierAccessory from './accessories/airpurifier';
+
 import PanasonicPlatformLogger from './logger';
 import { PanasonicAccessoryContext, PanasonicPlatformConfig } from './types';
 import {
@@ -23,7 +25,8 @@ import {
 enum SupportDeviceType {
   Climate = '1',
   WashMachine = '3',
-  Dehumidifier = '4'
+  Dehumidifier = '4',
+  AirPurifier = '8'
 }
 
 
@@ -155,6 +158,8 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
     switch (deviceType) {
       case SupportDeviceType.Dehumidifier:
       case SupportDeviceType.Climate:
+      case SupportDeviceType.AirPurifier:
+
 
         return true;
 
@@ -266,6 +271,9 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
         break;
       case SupportDeviceType.Climate:
         new ClimateAccessory(platform, accessory);
+        break;
+      case SupportDeviceType.AirPurifier:
+        new AirPurifierAccessory(platform, accessory);
         break;
       default:
         this.log.info(`Skipping unsupported deviceType: '${deviceType}' `);

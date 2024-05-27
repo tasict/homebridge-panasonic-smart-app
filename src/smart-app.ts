@@ -33,7 +33,7 @@ export default class SmartAppApi {
   private _devicesInfo: SmartAppDeviceInfo[];
 
   private _commands: SmartAppCommandList[];
-  private _loginRefreshInterval: NodeJS.Timer | undefined;
+  private _loginRefreshInterval: NodeJS.Timeout | undefined;
 
   constructor(
     private readonly config: PanasonicPlatformConfig,
@@ -53,7 +53,9 @@ export default class SmartAppApi {
   async login() {
     this.log.debug('Smart App: login()');
 
-    clearInterval(<NodeJS.Timer>this._loginRefreshInterval);
+    if(this._loginRefreshInterval !== undefined){
+      clearInterval(this._loginRefreshInterval);
+    }
 
     return axios.request({
       method: 'post',
