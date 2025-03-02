@@ -164,31 +164,26 @@ export default class DehumidifierAccessory {
       
  
     //////////
-     this.services['LeakSensor'] = this.accessory.getService(this.platform.Service.LeakSensor) || this.accessory.addService(this.platform.Service.LeakSensor, '水箱');
-    
-     this.services['LeakSensor'].setCharacteristic(this.platform.Characteristic.Name, '水箱');
-     this.services['LeakSensor'].getCharacteristic(this.platform.Characteristic.LeakDetected)
-    .onGet(this.getLeakDetected.bind(this));
+    this.services['HumidifierDehumidifier']
+     .getCharacteristic(this.platform.Characteristic.WaterLevel)
+     .onGet(this.getWaterLevel.bind(this));
 
-     this.services['LeakSensor'].addOptionalCharacteristic(this.platform.Characteristic.ConfiguredName);
-     this.services['LeakSensor'].setCharacteristic(this.platform.Characteristic.ConfiguredName, '水箱');
-
-    //////////
+     //////////
     const buttonBuzzerName = this.platform.smartApp.getCommandName(this.accessory.context.device, DehumidifierCommandType.Buzzer, '操作提示音');
-    this.services['BuzzerSwitch'] = this.accessory.getServiceByUUIDAndSubType(this.platform.Service.Switch, DehumidifierCommandType.Buzzer) || this.accessory.addService(this.platform.Service.Switch,  'buttonBuzzerName', DehumidifierCommandType.Buzzer);
+    this.services['BuzzerSwitch'] = this.accessory.getServiceById(this.platform.Service.Switch, DehumidifierCommandType.Buzzer) || this.accessory.addService(this.platform.Service.Switch,  'buttonBuzzerName', DehumidifierCommandType.Buzzer);
 
-     this.services['BuzzerSwitch'].setCharacteristic(this.platform.Characteristic.Name, buttonBuzzerName);
-     this.services['BuzzerSwitch'].getCharacteristic(this.platform.Characteristic.On)
+    this.services['BuzzerSwitch'].setCharacteristic(this.platform.Characteristic.Name, buttonBuzzerName);
+    this.services['BuzzerSwitch'].getCharacteristic(this.platform.Characteristic.On)
     .onSet(this.setBuzzer.bind(this))
     .onGet(this.getBuzzer.bind(this));
 
-     this.services['BuzzerSwitch'].addOptionalCharacteristic(this.platform.Characteristic.ConfiguredName);
-     this.services['BuzzerSwitch'].setCharacteristic(this.platform.Characteristic.ConfiguredName, buttonBuzzerName);
+    this.services['BuzzerSwitch'].addOptionalCharacteristic(this.platform.Characteristic.ConfiguredName);
+    this.services['BuzzerSwitch'].setCharacteristic(this.platform.Characteristic.ConfiguredName, buttonBuzzerName);
 
     //////////
     const buttonNanoName = this.platform.smartApp.getCommandName(this.accessory.context.device, DehumidifierCommandType.Nanoe, 'NanoE');
 
-    this.services['NanoeSwitch'] = this.accessory.getServiceByUUIDAndSubType(this.platform.Service.Switch, DehumidifierCommandType.Nanoe) || this.accessory.addService(this.platform.Service.Switch,  buttonNanoName, DehumidifierCommandType.Nanoe);
+    this.services['NanoeSwitch'] = this.accessory.getServiceById(this.platform.Service.Switch, DehumidifierCommandType.Nanoe) || this.accessory.addService(this.platform.Service.Switch,  buttonNanoName, DehumidifierCommandType.Nanoe);
     
     this.services['NanoeSwitch'].setCharacteristic(this.platform.Characteristic.Name, buttonNanoName);
     this.services['NanoeSwitch'].getCharacteristic(this.platform.Characteristic.On)
@@ -210,7 +205,7 @@ export default class DehumidifierAccessory {
 
         this.platform.log.debug(`Accessory: Mode Switch for device '${name}'`);
         
-        let serviceSwitch = this.accessory.getServiceByUUIDAndSubType(this.platform.Service.Switch, subtype) || this.accessory.addService(this.platform.Service.Switch, name, subtype);
+        let serviceSwitch = this.accessory.getServiceById(this.platform.Service.Switch, subtype) || this.accessory.addService(this.platform.Service.Switch, name, subtype);
 
         serviceSwitch.setCharacteristic(this.platform.Characteristic.Name, name);
         serviceSwitch.addOptionalCharacteristic(this.platform.Characteristic.ConfiguredName);
@@ -303,8 +298,8 @@ export default class DehumidifierAccessory {
 
 
       if (deviceStatus[DehumidifierCommandType.TankStatus] !== undefined) {
-         this.services['LeakSensor'].updateCharacteristic(this.platform.Characteristic.LeakDetected
-          , this.getDeviceInfoNumber(DehumidifierCommandType.TankStatus) == 1 ? this.platform.Characteristic.LeakDetected.LEAK_DETECTED : this.platform.Characteristic.LeakDetected.LEAK_NOT_DETECTED);
+         this.services['HumidifierDehumidifier'].updateCharacteristic(this.platform.Characteristic.WaterLevel
+          , this.getDeviceInfoNumber(DehumidifierCommandType.TankStatus) == 1 ? 100 : 0);
       }
 
       if(deviceStatus[DehumidifierCommandType.Buzzer] !== undefined) {
@@ -502,11 +497,11 @@ export default class DehumidifierAccessory {
   
   } 
   
-  async getLeakDetected():Promise<CharacteristicValue> {
+  async getWaterLevel():Promise<CharacteristicValue> {
 
     const value:number = this.getDeviceInfoNumber(DehumidifierCommandType.TankStatus);
     
-    return value == 1 ? this.platform.Characteristic.LeakDetected.LEAK_DETECTED : this.platform.Characteristic.LeakDetected.LEAK_NOT_DETECTED;
+    return value == 1 ? 100 : 0;
   }
   
   async setBuzzer(value: CharacteristicValue) {
