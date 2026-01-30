@@ -254,9 +254,7 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
         }
       }
     } catch (error) {
-      this.log.error('An error occurred during device discovery. '
-        + 'Turn on debug mode for more information.');
-      this.log.debug(error);
+      this.log.error(error);
     }
   }
 

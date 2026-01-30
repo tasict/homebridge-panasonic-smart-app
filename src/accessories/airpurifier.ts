@@ -89,8 +89,8 @@ export default class AirPurifierAccessory {
     //////////
     const buttonNanoName = this.platform.smartApp.getCommandName(this.accessory.context.device, AirPurifierCommandType.Nanoe, 'NanoE');
 
-    this.services['NanoeSwitch'] = this.accessory.getServiceByUUIDAndSubType(this.platform.Service.Switch, AirPurifierCommandType.Nanoe) || this.accessory.addService(this.platform.Service.Switch,  buttonNanoName, AirPurifierCommandType.Nanoe);
-    
+    this.services['NanoeSwitch'] = this.accessory.getServiceById(this.platform.Service.Switch, AirPurifierCommandType.Nanoe) || this.accessory.addService(this.platform.Service.Switch,  buttonNanoName, AirPurifierCommandType.Nanoe);
+
     this.services['NanoeSwitch'].setCharacteristic(this.platform.Characteristic.Name, buttonNanoName);
     this.services['NanoeSwitch'].getCharacteristic(this.platform.Characteristic.On)
     .onSet(this.setNanoe.bind(this))
