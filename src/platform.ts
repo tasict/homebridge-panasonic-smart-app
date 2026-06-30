@@ -41,7 +41,10 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
   // Used to track restored cached accessories
   private readonly accessories: PlatformAccessory<PanasonicAccessoryContext>[] = [];
 
-  private _loginRetryTimeout: NodeJS.Timer | undefined;
+  // Active accessory handlers, keyed by accessory UUID, so we can stop their polling.
+  private readonly handlers = new Map<string, { dispose(): void }>();
+
+  private _loginRetryTimeout: NodeJS.Timeout | undefined;
   private noOfFailedLoginAttempts = 0;
 
   public readonly smartApp: SmartAppApi;
@@ -82,6 +85,16 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
     this.api.on(APIEvent.DID_FINISH_LAUNCHING, () => {
       this.log.debug('Finished launching and restored cached accessories.');
       this.configurePlugin();
+    });
+
+    // Stop all timers on shutdown so we don't leak intervals or keep hitting the API.
+    this.api.on(APIEvent.SHUTDOWN, () => {
+      if (this._loginRetryTimeout) {
+        clearTimeout(this._loginRetryTimeout);
+      }
+      this.smartApp.dispose();
+      this.handlers.forEach(handler => handler.dispose());
+      this.handlers.clear();
     });
   }
 
@@ -249,6 +262,9 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
             this.log.info(`Removing accessory '${cachedAccessory.displayName}' (${guid}) `
               + 'because it does not exist on the Smart App account (anymore?).');
 
+            this.handlers.get(cachedAccessory.UUID)?.dispose();
+            this.handlers.delete(cachedAccessory.UUID);
+
             this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [cachedAccessory]);
           }
         }
@@ -263,18 +279,27 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
     platform: PanasonicPlatform,
     accessory: PlatformAccessory<PanasonicAccessoryContext>) {
 
+    // Replace any existing handler for this accessory (e.g. on cache restore) and stop its timer.
+    this.handlers.get(accessory.UUID)?.dispose();
+
+    let handler: { dispose(): void } | undefined;
+
     switch (deviceType) {
       case SupportDeviceType.Dehumidifier:
-        new DehumidifierAccessory(platform, accessory);
+        handler = new DehumidifierAccessory(platform, accessory);
         break;
       case SupportDeviceType.Climate:
-        new ClimateAccessory(platform, accessory);
+        handler = new ClimateAccessory(platform, accessory);
         break;
       case SupportDeviceType.AirPurifier:
-        new AirPurifierAccessory(platform, accessory);
+        handler = new AirPurifierAccessory(platform, accessory);
         break;
       default:
         this.log.info(`Skipping unsupported deviceType: '${deviceType}' `);
+    }
+
+    if (handler) {
+      this.handlers.set(accessory.UUID, handler);
     }
   }
 

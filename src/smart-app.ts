@@ -1,5 +1,5 @@
 import PanasonicPlatformLogger from './logger';
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import {
   LOGIN_TOKEN_REFRESH_INTERVAL,
 } from './settings';
@@ -14,9 +14,13 @@ import {
   USER_AGENT,
   BASE_URL,
   APP_TOKEN,
+  REQUEST_TIMEOUT,
+  SECONDS_BETWEEN_REQUEST,
   EXCEPTION_DEVICE_OFFLINE,
   EXCEPTION_DEVICE_NOT_RESPONDING,
   EXCEPTION_INVALID_REFRESH_TOKEN,
+  EXCEPTION_TOKEN_EXPIRED,
+  EXCEPTION_CPTOKEN_EXPIRED,
 } from './const';
 
 import {
@@ -30,10 +34,14 @@ export default class SmartAppApi {
   private _refresh_token: string;
   private _cp_token: string;
   private _devices: SmartAppDevice[];
-  private _devicesInfo: SmartAppDeviceInfo[];
+  private _devicesInfo: Record<string, SmartAppDeviceInfo>;
 
-  private _commands: SmartAppCommandList[];
+  private _commands: Record<string, SmartAppCommandList>;
   private _loginRefreshInterval: NodeJS.Timeout | undefined;
+
+  // Serialises outbound requests and spaces them out to avoid the API rate limit.
+  private _requestQueue: Promise<unknown> = Promise.resolve();
+  private _isReloggingIn = false;
 
   constructor(
     private readonly config: PanasonicPlatformConfig,
@@ -42,8 +50,58 @@ export default class SmartAppApi {
     this._cp_token = '';
     this._refresh_token = '';
     this._devices = [];
-    this._devicesInfo = [];
-    this._commands = [];
+    this._devicesInfo = {};
+    this._commands = {};
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // Stops the periodic token refresh (called on Homebridge shutdown).
+  dispose() {
+    if (this._loginRefreshInterval !== undefined) {
+      clearInterval(this._loginRefreshInterval);
+      this._loginRefreshInterval = undefined;
+    }
+  }
+
+  /**
+   * Runs all device requests through a single FIFO queue with a fixed gap
+   * between them (SECONDS_BETWEEN_REQUEST) and a hard timeout (REQUEST_TIMEOUT),
+   * so concurrent accessory refreshes don't trip the API rate limit.
+   */
+  private request(config: AxiosRequestConfig) {
+    const run = this._requestQueue.then(() => axios.request({
+      timeout: REQUEST_TIMEOUT * 1000,
+      ...config,
+    }));
+
+    // Keep the chain alive regardless of success/failure, then space out the next call.
+    this._requestQueue = run
+      .catch(() => undefined)
+      .then(() => this.delay(SECONDS_BETWEEN_REQUEST * 1000));
+
+    return run;
+  }
+
+  /**
+   * Re-authenticates in the background when the server reports an expired token.
+   * Guarded so overlapping failures only trigger a single login attempt.
+   */
+  private async reloginIfNeeded() {
+    if (this._isReloggingIn) {
+      return;
+    }
+    this._isReloggingIn = true;
+    try {
+      await this.login();
+      this.log.info('Re-login successful after token expiry.');
+    } catch {
+      this.log.error('Re-login failed after token expiry. Will retry on the next request.');
+    } finally {
+      this._isReloggingIn = false;
+    }
   }
 
   /**
@@ -60,6 +118,7 @@ export default class SmartAppApi {
     return axios.request({
       method: 'post',
       url: BASE_URL + '/userlogin1',
+      timeout: REQUEST_TIMEOUT * 1000,
       headers: {
         'User-Agent': USER_AGENT,
       },
@@ -91,11 +150,11 @@ export default class SmartAppApi {
 
     this.log.debug('Attemping to refresh token:' + this._refresh_token);
 
-    if (this._refresh_token === null) {
+    if (!this._refresh_token) {
       throw new PanasonicRefreshTokenNotFound();
     }
 
-    return axios.request({
+    return this.request({
       method: 'post',
       url: BASE_URL + '/RefreshToken1',
       headers: {
@@ -110,8 +169,8 @@ export default class SmartAppApi {
         this.log.debug('Smart App - refresh_token(): Success');
         this.log.debug(JSON.stringify(response.data));
 
-        this._refresh_token = response['RefreshToken'];
-        this._cp_token = response['CPToken'];
+        this._refresh_token = response.data['RefreshToken'];
+        this._cp_token = response.data['CPToken'];
 
 
       })
@@ -133,7 +192,7 @@ export default class SmartAppApi {
         + 'Check your credentials and restart Homebridge.');
     }
 
-    return axios.request({
+    return this.request({
       method: 'get',
       url: BASE_URL + '/UserGetRegisteredGwList2',
       headers: {
@@ -177,7 +236,7 @@ export default class SmartAppApi {
   async fetchDeviceInfo(
     device: SmartAppDevice,
     options: string[] | undefined = ['0x00', '0x01', '0x03', '0x04'],
-  ): Promise<SmartAppDeviceInfo> {
+  ): Promise<SmartAppDeviceInfo | undefined> {
     this.log.debug(`Smart App: fetchDeviceInfo() for device GUID '${device.NickName}'`);
 
     if (!this._cp_token) {
@@ -189,14 +248,15 @@ export default class SmartAppApi {
       return Promise.reject('Cannot get device info for undefined device.');
     }
 
-    const commands = {};
-    commands['DeviceID'] = 1;
-    commands['CommandTypes'] = [];
+    const commands: { DeviceID: number; CommandTypes: { CommandType: string }[] } = {
+      DeviceID: 1,
+      CommandTypes: [],
+    };
     for (const option of options) {
-      commands['CommandTypes'].push({ 'CommandType': option });
+      commands.CommandTypes.push({ 'CommandType': option });
     }
 
-    return axios.request({
+    return this.request({
       method: 'post',
       url: BASE_URL + '/DeviceGetInfo',
       headers: {
@@ -245,7 +305,7 @@ export default class SmartAppApi {
 
     const payload = { 'DeviceID': 1, 'CommandType': command, 'Value': value };
 
-    return axios.request({
+    return this.request({
       method: 'get',
       url: BASE_URL + '/DeviceSetCommand',
       headers: {
@@ -364,10 +424,8 @@ export default class SmartAppApi {
 
     if (status === 417) {
 
-      const data = error.response?.data;
-      const stateMsg = data !== undefined
-        && data !== null && data['StateMsg'] !== undefined
-        ? data['StateMsg'] : '';
+      const data = error.response?.data as { StateMsg?: string } | undefined;
+      const stateMsg = data?.StateMsg ?? '';
 
       if (stateMsg === EXCEPTION_DEVICE_OFFLINE || stateMsg === EXCEPTION_DEVICE_NOT_RESPONDING) {
 
@@ -375,8 +433,13 @@ export default class SmartAppApi {
 
         this.log.info(`${deviceName} is offline or not responding. Please check the device.`);
 
-      } else if (stateMsg === EXCEPTION_INVALID_REFRESH_TOKEN) {
-        this.log.info('Invalid refresh token. Please login again.');
+      } else if (
+        stateMsg === EXCEPTION_INVALID_REFRESH_TOKEN
+        || stateMsg === EXCEPTION_TOKEN_EXPIRED
+        || stateMsg === EXCEPTION_CPTOKEN_EXPIRED
+      ) {
+        this.log.info('Authentication token expired. Attempting to log in again.');
+        this.reloginIfNeeded();
       } else {
         this.log.debug(error.request);
         this.log.debug(error.message);

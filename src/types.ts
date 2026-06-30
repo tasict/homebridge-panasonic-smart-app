@@ -66,8 +66,6 @@ export interface SmartAppParameter {
 }
 
 export interface SmartAppDeviceInfo {
-  [CommandType: string]: {
-    status: string;
-  };
+  [CommandType: string]: string;
 }
 

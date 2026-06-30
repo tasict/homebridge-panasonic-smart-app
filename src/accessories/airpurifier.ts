@@ -1,7 +1,9 @@
-import { Service, PlatformAccessory, CharacteristicValue, CharacteristicSetCallback, CharacteristicGetCallback, CharacteristicEventTypes } from 'homebridge';
+import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import PanasonicPlatform from '../platform';
 import { DEVICE_STATUS_REFRESH_INTERVAL } from '../settings';
-import { PanasonicAccessoryContext, SmartAppCommand, SmartAppParameter } from '../types';
+import {
+  PanasonicAccessoryContext, SmartAppCommand, SmartAppParameter, SmartAppDevice,
+} from '../types';
 
 enum AirPurifierCommandType {
   Power = '0x00',
@@ -24,8 +26,8 @@ enum AirPurifierFanSpeedMode {
  * Each accessory may expose multiple services of different service types.
  */
 export default class AirPurifierAccessory {
-  private services: Service[] = [];
-  private _refreshInterval: NodeJS.Timer | undefined;
+  private services: Record<string, Service> = {};
+  private _refreshInterval: NodeJS.Timeout | undefined;
 
 
   constructor(
@@ -53,7 +55,7 @@ export default class AirPurifierAccessory {
     this.services['AirPurifier'] = this.accessory.getService(this.platform.Service.AirPurifier)
       || this.accessory.addService(this.platform.Service.AirPurifier);
 
-    
+
     // This is what is displayed as the default name on the Home app
     this.services['AirPurifier'].setCharacteristic(
       this.platform.Characteristic.Name,
@@ -69,14 +71,14 @@ export default class AirPurifierAccessory {
     this.services['AirPurifier']
       .getCharacteristic(this.platform.Characteristic.CurrentAirPurifierState)
       .setProps({ validValues: [
-        this.platform.Characteristic.CurrentAirPurifierState.INACTIVE, 
+        this.platform.Characteristic.CurrentAirPurifierState.INACTIVE,
         this.platform.Characteristic.CurrentAirPurifierState.IDLE,
-      	this.platform.Characteristic.CurrentAirPurifierState.PURIFYING_AIR,
-        ]
+        this.platform.Characteristic.CurrentAirPurifierState.PURIFYING_AIR,
+      ],
       })
       .onGet(this.getAirPurifierState.bind(this));
 
-      this.services['AirPurifier']  
+    this.services['AirPurifier']
       .getCharacteristic(this.platform.Characteristic.RotationSpeed)
       .setProps({
         minValue: 0,
@@ -87,20 +89,28 @@ export default class AirPurifierAccessory {
       .onGet(this.getRotationSpeed.bind(this));
 
     //////////
-    const buttonNanoName = this.platform.smartApp.getCommandName(this.accessory.context.device, AirPurifierCommandType.Nanoe, 'NanoE');
+    const buttonNanoName = this.platform.smartApp.getCommandName(
+      this.accessory.context.device, AirPurifierCommandType.Nanoe, 'NanoE');
 
-    this.services['NanoeSwitch'] = this.accessory.getServiceById(this.platform.Service.Switch, AirPurifierCommandType.Nanoe) || this.accessory.addService(this.platform.Service.Switch,  buttonNanoName, AirPurifierCommandType.Nanoe);
+    this.services['NanoeSwitch'] = this.accessory.getServiceById(
+      this.platform.Service.Switch, AirPurifierCommandType.Nanoe)
+      || this.accessory.addService(
+        this.platform.Service.Switch, buttonNanoName, AirPurifierCommandType.Nanoe);
 
-    this.services['NanoeSwitch'].setCharacteristic(this.platform.Characteristic.Name, buttonNanoName);
+    this.services['NanoeSwitch'].setCharacteristic(
+      this.platform.Characteristic.Name, buttonNanoName);
     this.services['NanoeSwitch'].getCharacteristic(this.platform.Characteristic.On)
-    .onSet(this.setNanoe.bind(this))
-    .onGet(this.getNanoe.bind(this));
-    
-    this.services['NanoeSwitch'].addOptionalCharacteristic(this.platform.Characteristic.ConfiguredName);
-    this.services['NanoeSwitch'].setCharacteristic(this.platform.Characteristic.ConfiguredName, buttonNanoName);
+      .onSet(this.setNanoe.bind(this))
+      .onGet(this.getNanoe.bind(this));
+
+    this.services['NanoeSwitch'].addOptionalCharacteristic(
+      this.platform.Characteristic.ConfiguredName);
+    this.services['NanoeSwitch'].setCharacteristic(
+      this.platform.Characteristic.ConfiguredName, buttonNanoName);
 
     //////////
-    this.services['AirQualitySensor'] = this.accessory.getService(this.platform.Service.AirQualitySensor)
+    this.services['AirQualitySensor'] = this.accessory.getService(
+      this.platform.Service.AirQualitySensor)
     || this.accessory.addService(this.platform.Service.AirQualitySensor);
 
     this.services['AirQualitySensor'].getCharacteristic(this.platform.Characteristic.AirQuality)
@@ -113,7 +123,7 @@ export default class AirPurifierAccessory {
       .onGet(this.getActive.bind(this));
 
 
-   
+
     // Update characteristic values asynchronously instead of using onGet handlers
     this.refreshDeviceStatus();
   }
@@ -126,24 +136,24 @@ export default class AirPurifierAccessory {
 
     try {
       const deviceStatus = await this.platform.smartApp.fetchDeviceInfo(
-        this.accessory.context.device, 
+        this.accessory.context.device,
         [
-         AirPurifierCommandType.Power, 
-         AirPurifierCommandType.Mode,
-         AirPurifierCommandType.FanMode,
-         AirPurifierCommandType.Nanoe,
-          AirPurifierCommandType.PM25
-        ]
+          AirPurifierCommandType.Power,
+          AirPurifierCommandType.Mode,
+          AirPurifierCommandType.FanMode,
+          AirPurifierCommandType.Nanoe,
+          AirPurifierCommandType.PM25,
+        ],
       );
-                                      
+
 
       if(deviceStatus === undefined) {
-  
+
         this.services['AirPurifier'].updateCharacteristic(
           this.platform.Characteristic.Active,
           new Error('Exception occurred in refreshDeviceStatus()'),
         );
-        
+
         return;
       }
 
@@ -151,26 +161,32 @@ export default class AirPurifierAccessory {
 
       // Power
       if (deviceStatus[AirPurifierCommandType.Power] !== undefined) {
-        const active = deviceStatus[AirPurifierCommandType.Power].status === '1'
+        const active = this.getDeviceInfoNumber(AirPurifierCommandType.Power) === 1
           ? this.platform.Characteristic.Active.ACTIVE
           : this.platform.Characteristic.Active.INACTIVE;
-        this.services['AirPurifier'].updateCharacteristic(this.platform.Characteristic.Active, active);
+        this.services['AirPurifier'].updateCharacteristic(
+          this.platform.Characteristic.Active, active);
       }
 
-    
+
       if(deviceStatus[AirPurifierCommandType.FanMode] !== undefined) {
-        this.services['AirPurifier'].updateCharacteristic(this.platform.Characteristic.RotationSpeed, this.getSpeedVal(this.getDeviceInfoNumber(AirPurifierCommandType.FanMode)));        
+        this.services['AirPurifier'].updateCharacteristic(
+          this.platform.Characteristic.RotationSpeed,
+          this.getSpeedVal(this.getDeviceInfoNumber(AirPurifierCommandType.FanMode)));
       }
 
       if(deviceStatus[AirPurifierCommandType.Nanoe] !== undefined) {
-        this.services['NanoeSwitch'].updateCharacteristic(this.platform.Characteristic.On, this.getDeviceInfoNumber(AirPurifierCommandType.Nanoe) == 1);
+        this.services['NanoeSwitch'].updateCharacteristic(
+          this.platform.Characteristic.On,
+          this.getDeviceInfoNumber(AirPurifierCommandType.Nanoe) === 1);
       }
 
       ///
 
 
     } catch (error) {
-      this.platform.log.error('An error occurred while refreshing the device status. Turn on debug mode for more information.');
+      this.platform.log.error('An error occurred while refreshing the device status. '
+        + 'Turn on debug mode for more information.');
 
       // Only log if a Promise rejection reason was provided.
       // Some errors are already logged at source.
@@ -206,14 +222,17 @@ export default class AirPurifierAccessory {
 
   updateSwitchMode(mode: number) {
 
-    const smartAppCommand:SmartAppCommand = this.platform.smartApp.getCommandList(this.accessory.context.device, AirPurifierCommandType.Mode);
+    const smartAppCommand:SmartAppCommand | undefined
+      = this.platform.smartApp.getCommandList(
+        this.accessory.context.device, AirPurifierCommandType.Mode);
 
     if(smartAppCommand !== undefined){
 
       smartAppCommand.Parameters.forEach((param:SmartAppParameter) => {
-          
-          const subtype:string = 'Mode_' + param[1];
-          this.services[subtype].updateCharacteristic(this.platform.Characteristic.On, mode == +param[1]);
+
+        const subtype:string = 'Mode_' + param[1];
+        this.services[subtype].updateCharacteristic(
+          this.platform.Characteristic.On, mode === +param[1]);
       });
 
     }
@@ -222,15 +241,20 @@ export default class AirPurifierAccessory {
   private getDeviceInfoNumber(commandType:string, defaultValue:number|undefined = 0):number {
     try{
 
-      const value:number = +this.platform.smartApp.getDeviceInfo(this.accessory.context.device, commandType, defaultValue.toString());
-      const CommandName = this.platform.smartApp.getCommandName(this.accessory.context.device, commandType);
-      
-      this.platform.log.debug(`'${this.accessory.displayName}' getDeviceInfoNumber('${commandType}':'${CommandName}'): `+value);
+      const value:number = +this.platform.smartApp.getDeviceInfo(
+        this.accessory.context.device, commandType, defaultValue.toString());
+      const CommandName = this.platform.smartApp.getCommandName(
+        this.accessory.context.device, commandType);
+
+      this.platform.log.debug(
+        `'${this.accessory.displayName}' getDeviceInfoNumber`
+        + `('${commandType}':'${CommandName}'): ` + value);
 
       return value;
 
     }catch(err){
-      this.platform.log.debug(`'${this.accessory.displayName}' getDeviceInfoNumber('${commandType}' Error: ${err}`);
+      this.platform.log.debug(
+        `'${this.accessory.displayName}' getDeviceInfoNumber('${commandType}' Error: ${err}`);
     }
 
     return defaultValue;
@@ -240,19 +264,23 @@ export default class AirPurifierAccessory {
     this.platform.log.debug(`Accessory: setActive() for device '${this.accessory.displayName}'`);
 
     this.sendCommandToDevice(
-      this.accessory.context.device, AirPurifierCommandType.Power, value === this.platform.Characteristic.Active.ACTIVE ? '1' : '0');
+      this.accessory.context.device, AirPurifierCommandType.Power,
+      value === this.platform.Characteristic.Active.ACTIVE ? '1' : '0');
 
-    this.services['AirPurifier'].updateCharacteristic(this.platform.Characteristic.Active, value);  
+    this.services['AirPurifier'].updateCharacteristic(
+      this.platform.Characteristic.Active, value);
   }
 
-  async getActive():Promise<CharacteristicValue> { 
-      
-      const value:number = this.getDeviceInfoNumber(AirPurifierCommandType.Power);
-      return value === 1 ? this.platform.Characteristic.Active.ACTIVE : this.platform.Characteristic.Active.INACTIVE;
+  async getActive():Promise<CharacteristicValue> {
+
+    const value:number = this.getDeviceInfoNumber(AirPurifierCommandType.Power);
+    return value === 1
+      ? this.platform.Characteristic.Active.ACTIVE
+      : this.platform.Characteristic.Active.INACTIVE;
   }
 
   async getAirPurifierState():Promise<CharacteristicValue> {
-  
+
     const power:number = this.getDeviceInfoNumber(AirPurifierCommandType.Power);
 
     if(power === 0){
@@ -261,27 +289,27 @@ export default class AirPurifierAccessory {
 
 
     return this.platform.Characteristic.CurrentAirPurifierState.PURIFYING_AIR;
-  
+
   }
 
   getSpeedVal(value:number){
     let speed = 0;
-    
+
 
     switch(value){
       case AirPurifierFanSpeedMode.Fast:
-          speed = 100;
-          break;
+        speed = 100;
+        break;
 
       case AirPurifierFanSpeedMode.Normal:
-          speed = 50;
-          break;
+        speed = 50;
+        break;
 
-      case AirPurifierFanSpeedMode.Silent:      
-          speed = 20;
-          break;
+      case AirPurifierFanSpeedMode.Silent:
+        speed = 20;
+        break;
 
-      
+
       case AirPurifierFanSpeedMode.Auto:
       default:
         speed = 0;
@@ -293,19 +321,17 @@ export default class AirPurifierAccessory {
 
   async setRotationSpeed(value: CharacteristicValue) {
 
-    this.platform.log.debug(`Accessory: setRotationSpeed() for device '${this.accessory.displayName}'`);
-    var speedMode = AirPurifierFanSpeedMode.Auto;
+    this.platform.log.debug(
+      `Accessory: setRotationSpeed() for device '${this.accessory.displayName}'`);
+    let speedMode = AirPurifierFanSpeedMode.Auto;
 
     if(+value > 0 && +value < 25){
       speedMode = AirPurifierFanSpeedMode.Silent;
-    }
-    else if(+value >= 25 && +value < 75){
+    } else if(+value >= 25 && +value < 75){
       speedMode = AirPurifierFanSpeedMode.Normal;
-    }
-    else if(+value >= 75){
-      speedMode = AirPurifierFanSpeedMode.Fast;      
-    }
-    else{
+    } else if(+value >= 75){
+      speedMode = AirPurifierFanSpeedMode.Fast;
+    } else{
       speedMode = AirPurifierFanSpeedMode.Auto;
     }
 
@@ -318,11 +344,11 @@ export default class AirPurifierAccessory {
   }
 
   async getRotationSpeed():Promise<CharacteristicValue> {
-    
+
     const value:number = this.getDeviceInfoNumber(AirPurifierCommandType.FanMode);
     return this.getSpeedVal(value);
-  
-  } 
+
+  }
 
   async setNanoe(value: CharacteristicValue) {
     this.platform.log.debug(`Accessory: setNanoe() for device '${this.accessory.displayName}'`);
@@ -335,14 +361,15 @@ export default class AirPurifierAccessory {
   }
 
   async getNanoe():Promise<CharacteristicValue> {
-      
-    return this.getDeviceInfoNumber(AirPurifierCommandType.Nanoe) == 1;    
+
+    return this.getDeviceInfoNumber(AirPurifierCommandType.Nanoe) === 1;
 
   }
 
   async getCurrentAirQuality():Promise<CharacteristicValue> {
-    const pm25 = this.getDeviceInfoNumber(AirPurifierCommandType.PM25);    
-    const pm25Quality = pm25 <= 35 ? 1 : (pm25 <= 53 ? 2 : (pm25 <= 70 ? 3 : (pm25 <= 150 ? 4 : 5)));
+    const pm25 = this.getDeviceInfoNumber(AirPurifierCommandType.PM25);
+    const pm25Quality = pm25 <= 35 ? 1
+      : (pm25 <= 53 ? 2 : (pm25 <= 70 ? 3 : (pm25 <= 150 ? 4 : 5)));
 
     return pm25Quality;
   }
@@ -351,12 +378,14 @@ export default class AirPurifierAccessory {
     return this.getDeviceInfoNumber(AirPurifierCommandType.PM25) || 0;
   }
 
-  async sendCommandToDevice(device: any, command: string, value: string) {
+  async sendCommandToDevice(device: SmartAppDevice, command: string, value: string) {
     try {
       // Only send non-empty payloads to prevent a '500 Internal Server Error'
-      this.platform.log.debug(`Sending command '${command}' with value '${value}' to device '${this.accessory.displayName}'`);
+      this.platform.log.debug(
+        `Sending command '${command}' with value '${value}' `
+        + `to device '${this.accessory.displayName}'`);
 
-      this.platform.smartApp.doCommand(device, command, value);
+      await this.platform.smartApp.doCommand(device, command, value);
 
     } catch (error) {
       this.platform.log.error('An error occurred while sending a device update. '
@@ -367,6 +396,14 @@ export default class AirPurifierAccessory {
       if (error) {
         this.platform.log.debug(error);
       }
+    }
+  }
+
+  // Stops the background status polling (called on shutdown or when the device is removed).
+  dispose() {
+    if (this._refreshInterval) {
+      clearInterval(this._refreshInterval);
+      this._refreshInterval = undefined;
     }
   }
 

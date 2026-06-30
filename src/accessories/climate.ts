@@ -1,7 +1,7 @@
-import { Service, PlatformAccessory, CharacteristicValue, CharacteristicSetCallback, CharacteristicGetCallback, CharacteristicEventTypes } from 'homebridge';
+import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import PanasonicPlatform from '../platform';
 import { DEVICE_STATUS_REFRESH_INTERVAL } from '../settings';
-import { PanasonicAccessoryContext, SmartAppCommand, SmartAppParameter } from '../types';
+import { PanasonicAccessoryContext, SmartAppDevice } from '../types';
 
 enum ClimateCommandType {
   Power = '0x00',
@@ -26,13 +26,6 @@ enum ClimateCommandType {
   PM25 = '0x37',
 }
 
-enum ClimateFanSpeedMode {
-  Auto = 0,
-  Fast = 1,
-  Normal = 2,
-  Silent = 3,
-}
-
 enum ClimateMode {
   Off = -1,
   Cool = 0,
@@ -48,8 +41,8 @@ enum ClimateMode {
  * Each accessory may expose multiple services of different service types.
  */
 export default class ClimateAccessory {
-  private services: Service[] = [];
-  private _refreshInterval: NodeJS.Timer | undefined;
+  private services: Record<string, Service> = {};
+  private _refreshInterval: NodeJS.Timeout | undefined;
 
 
   constructor(
@@ -77,7 +70,7 @@ export default class ClimateAccessory {
     this.services['Climate'] = this.accessory.getService(this.platform.Service.HeaterCooler)
       || this.accessory.addService(this.platform.Service.HeaterCooler);
 
-    
+
     // This is what is displayed as the default name on the Home app
     this.services['Climate'].setCharacteristic(
       this.platform.Characteristic.Name,
@@ -95,7 +88,7 @@ export default class ClimateAccessory {
         minValue: -100,
         maxValue: 100,
         minStep: 0.01,
-      });  
+      });
 
     this.services['Climate']
       .getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
@@ -105,27 +98,27 @@ export default class ClimateAccessory {
       .getCharacteristic(this.platform.Characteristic.TargetHeaterCoolerState)
       .onSet(this.setTargetHeaterCoolerState.bind(this));
 
-         // Cooling Threshold Temperature (optional)
+    // Cooling Threshold Temperature (optional)
     this.services['Climate']
-         .getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
-    .setProps({
-      minValue: 16,
-      maxValue: 30,
-      minStep: 1,
-    })
-    .onSet(this.setCoolingThresholdTemperature.bind(this));
+      .getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
+      .setProps({
+        minValue: 16,
+        maxValue: 30,
+        minStep: 1,
+      })
+      .onSet(this.setCoolingThresholdTemperature.bind(this));
 
-  // Heating Threshold Temperature (optional)
-  this.services['Climate']
-    .getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
-    .setProps({
-      minValue: 16,
-      maxValue: 30,
-      minStep: 0.5,
-    })
-    .onSet(this.setHeatingThresholdTemperature.bind(this));
+    // Heating Threshold Temperature (optional)
+    this.services['Climate']
+      .getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
+      .setProps({
+        minValue: 16,
+        maxValue: 30,
+        minStep: 0.5,
+      })
+      .onSet(this.setHeatingThresholdTemperature.bind(this));
 
-    
+
     //////////
     // Update characteristic values asynchronously instead of using onGet handlers
     this.refreshDeviceStatus();
@@ -139,24 +132,24 @@ export default class ClimateAccessory {
 
     try {
       const deviceStatus = await this.platform.smartApp.fetchDeviceInfo(
-        this.accessory.context.device, 
+        this.accessory.context.device,
         [
-         ClimateCommandType.Power, 
-         ClimateCommandType.Mode,
-         ClimateCommandType.Buzzer,
-         ClimateCommandType.CurrentTemperature,
-         ClimateCommandType.TargetTemperature,
-        ]
+          ClimateCommandType.Power,
+          ClimateCommandType.Mode,
+          ClimateCommandType.Buzzer,
+          ClimateCommandType.CurrentTemperature,
+          ClimateCommandType.TargetTemperature,
+        ],
       );
 
 
       if(deviceStatus === undefined) {
-  
+
         this.services['Climate'].updateCharacteristic(
           this.platform.Characteristic.Active,
           new Error('Exception occurred in refreshDeviceStatus()'),
         );
-        
+
         return;
       }
 
@@ -164,7 +157,7 @@ export default class ClimateAccessory {
 
       // Power
       if (deviceStatus[ClimateCommandType.Power] !== undefined) {
-        const active = deviceStatus[ClimateCommandType.Power].status === '1'
+        const active = this.getDeviceInfoNumber(ClimateCommandType.Power) === 1
           ? this.platform.Characteristic.Active.ACTIVE
           : this.platform.Characteristic.Active.INACTIVE;
         this.services['Climate'].updateCharacteristic(this.platform.Characteristic.Active, active);
@@ -172,7 +165,9 @@ export default class ClimateAccessory {
 
 
       if (deviceStatus[ClimateCommandType.CurrentTemperature] !== undefined) {
-        this.services['Climate'].updateCharacteristic(this.platform.Characteristic.CurrentTemperature, this.getDeviceInfoNumber(ClimateCommandType.CurrentTemperature));
+        this.services['Climate'].updateCharacteristic(
+          this.platform.Characteristic.CurrentTemperature,
+          this.getDeviceInfoNumber(ClimateCommandType.CurrentTemperature));
       }
 
 
@@ -181,7 +176,8 @@ export default class ClimateAccessory {
 
 
     } catch (error) {
-      this.platform.log.error('An error occurred while refreshing the device status. Turn on debug mode for more information.');
+      this.platform.log.error('An error occurred while refreshing the device status. '
+        + 'Turn on debug mode for more information.');
 
       // Only log if a Promise rejection reason was provided.
       // Some errors are already logged at source.
@@ -218,9 +214,11 @@ export default class ClimateAccessory {
   private getDeviceInfoNumber(commandType:string, defaultValue:number|undefined = 0):number {
     try{
 
-      const value:number = +this.platform.smartApp.getDeviceInfo(this.accessory.context.device, commandType, defaultValue.toString());
-      const CommandName = this.platform.smartApp.getCommandName(this.accessory.context.device, commandType);
-      
+      const value:number = +this.platform.smartApp.getDeviceInfo(
+        this.accessory.context.device, commandType, defaultValue.toString());
+      const CommandName = this.platform.smartApp.getCommandName(
+        this.accessory.context.device, commandType);
+
       this.platform.log.debug(`getDeviceInfoNumber('${commandType}':'${CommandName}'): `+value);
 
       return value;
@@ -236,27 +234,34 @@ export default class ClimateAccessory {
     this.platform.log.debug(`Accessory: setActive() for device '${this.accessory.displayName}'`);
 
     this.sendCommandToDevice(
-      this.accessory.context.device, ClimateCommandType.Power, value === this.platform.Characteristic.Active.ACTIVE ? '1' : '0');
+      this.accessory.context.device, ClimateCommandType.Power,
+      value === this.platform.Characteristic.Active.ACTIVE ? '1' : '0');
 
-    this.services['Climate'].updateCharacteristic(this.platform.Characteristic.Active, value);  
+    this.services['Climate'].updateCharacteristic(this.platform.Characteristic.Active, value);
   }
 
-  async getActive():Promise<CharacteristicValue> { 
-      
-      const value:number = this.getDeviceInfoNumber(ClimateCommandType.Power);
-      return value === 1 ? this.platform.Characteristic.Active.ACTIVE : this.platform.Characteristic.Active.INACTIVE;
+  async getActive():Promise<CharacteristicValue> {
+
+    const value:number = this.getDeviceInfoNumber(ClimateCommandType.Power);
+    return value === 1
+      ? this.platform.Characteristic.Active.ACTIVE
+      : this.platform.Characteristic.Active.INACTIVE;
   }
 
   async getCurrentHeaterCoolerState():Promise<CharacteristicValue> {
+
+    // When the unit is off (or status hasn't been fetched yet) report INACTIVE,
+    // otherwise an empty cache (mode defaults to 0) would be misread as Cool.
+    if (this.getDeviceInfoNumber(ClimateCommandType.Power) === 0) {
+      return this.platform.Characteristic.CurrentHeaterCoolerState.INACTIVE;
+    }
 
     const currentTemperature = this.getDeviceInfoNumber(ClimateCommandType.CurrentTemperature);
     const setTemperature = this.getDeviceInfoNumber(ClimateCommandType.TargetTemperature);
     const currentMode = this.getDeviceInfoNumber(ClimateCommandType.Mode);
 
 
-    switch (currentMode) 
-
-    {
+    switch (currentMode) {
       // Auto
       case ClimateMode.Auto:
         // Set target state and current state (based on current temperature)
@@ -266,13 +271,16 @@ export default class ClimateAccessory {
         );
 
         if (currentTemperature < setTemperature) {
-          this.services['Climate'].getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+          this.services['Climate']
+            .getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
             .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.HEATING);
         } else if (currentTemperature > setTemperature) {
-          this.services['Climate'].getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+          this.services['Climate']
+            .getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
             .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.COOLING);
         } else {
-          this.services['Climate'].getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+          this.services['Climate']
+            .getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
             .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.IDLE);
         }
         break;
@@ -285,10 +293,12 @@ export default class ClimateAccessory {
         );
 
         if (currentTemperature < setTemperature) {
-          this.services['Climate'].getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+          this.services['Climate']
+            .getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
             .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.HEATING);
         } else {
-          this.services['Climate'].getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+          this.services['Climate']
+            .getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
             .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.IDLE);
         }
         break;
@@ -301,19 +311,22 @@ export default class ClimateAccessory {
         );
 
         if (currentTemperature > setTemperature) {
-          this.services['Climate'].getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+          this.services['Climate']
+            .getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
             .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.COOLING);
         } else {
-          this.services['Climate'].getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+          this.services['Climate']
+            .getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
             .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.IDLE);
         }
         break;
 
       // Dry (Dehumidifier)
       case ClimateMode.Dry:
-        this.services['Climate'].getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+        this.services['Climate']
+          .getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
           .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.IDLE);
-          this.services['Climate'].updateCharacteristic(
+        this.services['Climate'].updateCharacteristic(
           this.platform.Characteristic.TargetHeaterCoolerState,
 
           this.platform.Characteristic.TargetHeaterCoolerState.AUTO,
@@ -322,9 +335,10 @@ export default class ClimateAccessory {
 
       // Fan
       case ClimateMode.FanOnly:
-        this.services['Climate'].getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
+        this.services['Climate']
+          .getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState)
           .updateValue(this.platform.Characteristic.CurrentHeaterCoolerState.IDLE);
-          this.services['Climate'].updateCharacteristic(
+        this.services['Climate'].updateCharacteristic(
           this.platform.Characteristic.TargetHeaterCoolerState,
 
           this.platform.Characteristic.TargetHeaterCoolerState.AUTO,
@@ -333,42 +347,51 @@ export default class ClimateAccessory {
 
       default:
         this.platform.log.error(
-          `Unknown TargetHeaterCoolerState state: '${this.accessory.displayName}' '${currentMode}'`);
+          `Unknown TargetHeaterCoolerState state: '${this.accessory.displayName}' `
+          + `'${currentMode}'`);
         break;
     }
-    return this.services['Climate'].getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState).value ;
-  
+    return this.services['Climate']
+      .getCharacteristic(this.platform.Characteristic.CurrentHeaterCoolerState).value
+      ?? this.platform.Characteristic.CurrentHeaterCoolerState.INACTIVE;
+
   }
 
   async setCoolingThresholdTemperature(value: CharacteristicValue) {
 
-    this.platform.log.debug(`Accessory: setCoolingThresholdTemperature() for device '${this.accessory.displayName}'`);
+    this.platform.log.debug(
+      'Accessory: setCoolingThresholdTemperature() for device '
+      + `'${this.accessory.displayName}'`);
 
     const threshold:number = +value;
 
     this.sendCommandToDevice(
       this.accessory.context.device, ClimateCommandType.TargetTemperature, threshold.toString());
 
-    this.services['Climate'].getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
+    this.services['Climate']
+      .getCharacteristic(this.platform.Characteristic.CoolingThresholdTemperature)
       .updateValue(value);
   }
 
   async setHeatingThresholdTemperature(value: CharacteristicValue) {
 
-    this.platform.log.debug(`Accessory: setHeatingThresholdTemperature() for device '${this.accessory.displayName}'`);
+    this.platform.log.debug(
+      `Accessory: setHeatingThresholdTemperature() for device '${this.accessory.displayName}'`);
 
     const threshold:number = +value;
 
     this.sendCommandToDevice(
       this.accessory.context.device, ClimateCommandType.TargetTemperature, threshold.toString());
 
-    this.services['Climate'].getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
+    this.services['Climate']
+      .getCharacteristic(this.platform.Characteristic.HeatingThresholdTemperature)
       .updateValue(value);
   }
 
   async setTargetHeaterCoolerState(value: CharacteristicValue) {
 
-    this.platform.log.debug(`Accessory: setTargetHeaterCoolerState() for device '${this.accessory.displayName}'`);
+    this.platform.log.debug(
+      `Accessory: setTargetHeaterCoolerState() for device '${this.accessory.displayName}'`);
 
     let mode = ClimateMode.Auto;
 
@@ -399,12 +422,14 @@ export default class ClimateAccessory {
   }
 
 
-  async sendCommandToDevice(device: any, command: string, value: string) {
+  async sendCommandToDevice(device: SmartAppDevice, command: string, value: string) {
     try {
       // Only send non-empty payloads to prevent a '500 Internal Server Error'
-      this.platform.log.debug(`Sending command '${command}' with value '${value}' to device '${this.accessory.displayName}'`);
+      this.platform.log.debug(
+        `Sending command '${command}' with value '${value}' `
+        + `to device '${this.accessory.displayName}'`);
 
-      this.platform.smartApp.doCommand(device, command, value);
+      await this.platform.smartApp.doCommand(device, command, value);
 
     } catch (error) {
       this.platform.log.error('An error occurred while sending a device update. '
@@ -415,6 +440,14 @@ export default class ClimateAccessory {
       if (error) {
         this.platform.log.debug(error);
       }
+    }
+  }
+
+  // Stops the background status polling (called on shutdown or when the device is removed).
+  dispose() {
+    if (this._refreshInterval) {
+      clearInterval(this._refreshInterval);
+      this._refreshInterval = undefined;
     }
   }
 
