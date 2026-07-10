@@ -11,3 +11,15 @@ export class PanasonicRefreshTokenNotFound extends PanasonicBaseException {
     this.name = 'PanasonicRefreshTokenNotFound';
   }
 }
+
+/**
+ * A request failed because of a global condition (full queue, rate-limit
+ * pause, client shutdown) rather than the targeted device. Accessories must
+ * not treat these as a device failure (no 'Not Responding', no poll backoff).
+ */
+export class TransientApiError extends PanasonicBaseException {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TransientApiError';
+  }
+}

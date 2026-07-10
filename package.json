@@ -40,8 +40,7 @@
     "panasonic smart App"
   ],
   "dependencies": {
-    "axios": "^1.13.4",
-    "cheerio": "^1.2.0"
+    "axios": "^1.13.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.14.0",

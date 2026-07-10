@@ -16,3 +16,7 @@ export const LOGIN_TOKEN_REFRESH_INTERVAL = 604800 * 1000;
 
 // 60 sec = 1 min
 export const DEVICE_STATUS_REFRESH_INTERVAL = 60 * 1000;
+
+// When a device keeps failing to respond, its polling backs off exponentially
+// up to this many refresh intervals between attempts (see BaseAccessory).
+export const MAX_REFRESH_BACKOFF_INTERVALS = 8;

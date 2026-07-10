@@ -1,11 +1,8 @@
-import {
-  Service, PlatformAccessory, CharacteristicValue,
-  CharacteristicSetCallback, CharacteristicGetCallback, CharacteristicEventTypes,
-} from 'homebridge';
+import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import PanasonicPlatform from '../platform';
-import { DEVICE_STATUS_REFRESH_INTERVAL } from '../settings';
+import BaseAccessory from './base';
 import {
-  PanasonicAccessoryContext, SmartAppCommand, SmartAppParameter, SmartAppDevice,
+  PanasonicAccessoryContext, SmartAppCommand, SmartAppParameter, SmartAppDeviceInfo,
 } from '../types';
 
 /*
@@ -76,43 +73,17 @@ enum DehumidifierCommandType {
   FanMode = '0x0E',
 }
 
-enum DehumidifierFanSpeedMode {
-  Auto = 0,
-  Fast = 1,
-  Normal = 2,
-  Silent = 3
-}
-
 /**
  * An instance of this class is created for each accessory the platform registers.
  * Each accessory may expose multiple services of different service types.
  */
-export default class DehumidifierAccessory {
-  private services: Record<string, Service> = {};
-  private _refreshInterval: NodeJS.Timeout | undefined;
-
+export default class DehumidifierAccessory extends BaseAccessory {
 
   constructor(
-    private readonly platform: PanasonicPlatform,
-    private readonly accessory: PlatformAccessory<PanasonicAccessoryContext>,
+    platform: PanasonicPlatform,
+    accessory: PlatformAccessory<PanasonicAccessoryContext>,
   ) {
-
-
-    // Accessory Information
-    // https://developers.homebridge.io/#/service/AccessoryInformation
-    this.accessory.getService(this.platform.Service.AccessoryInformation)
-      ?.setCharacteristic(
-        this.platform.Characteristic.Manufacturer,
-        'Panasonic TW',
-      )
-      .setCharacteristic(
-        this.platform.Characteristic.Model,
-        accessory.context.device?.Model || 'Unknown',
-      )
-      .setCharacteristic(
-        this.platform.Characteristic.SerialNumber,
-        accessory.context.device?.GWID || 'Unknown',
-      );
+    super(platform, accessory);
 
     this.services['HumidifierDehumidifier']
       = this.accessory.getService(this.platform.Service.HumidifierDehumidifier)
@@ -181,43 +152,12 @@ export default class DehumidifierAccessory {
       .onGet(this.getWaterLevel.bind(this));
 
     //////////
-    const buttonBuzzerName = this.platform.smartApp.getCommandName(
-      this.accessory.context.device, DehumidifierCommandType.Buzzer, '操作提示音');
-    this.services['BuzzerSwitch'] = this.accessory.getServiceById(
-      this.platform.Service.Switch, DehumidifierCommandType.Buzzer)
-      || this.accessory.addService(
-        this.platform.Service.Switch, buttonBuzzerName, DehumidifierCommandType.Buzzer);
-
-    this.services['BuzzerSwitch'].setCharacteristic(
-      this.platform.Characteristic.Name, buttonBuzzerName);
-    this.services['BuzzerSwitch'].getCharacteristic(this.platform.Characteristic.On)
-      .onSet(this.setBuzzer.bind(this))
-      .onGet(this.getBuzzer.bind(this));
-
-    this.services['BuzzerSwitch'].addOptionalCharacteristic(
-      this.platform.Characteristic.ConfiguredName);
-    this.services['BuzzerSwitch'].setCharacteristic(
-      this.platform.Characteristic.ConfiguredName, buttonBuzzerName);
+    // Inverted on purpose: the device treats '0' as buzzer-on and '1' as muted.
+    this.setupToggleSwitch(
+      'BuzzerSwitch', DehumidifierCommandType.Buzzer, '操作提示音', '0', '1');
 
     //////////
-    const buttonNanoName = this.platform.smartApp.getCommandName(
-      this.accessory.context.device, DehumidifierCommandType.Nanoe, 'NanoE');
-
-    this.services['NanoeSwitch'] = this.accessory.getServiceById(
-      this.platform.Service.Switch, DehumidifierCommandType.Nanoe)
-      || this.accessory.addService(
-        this.platform.Service.Switch, buttonNanoName, DehumidifierCommandType.Nanoe);
-
-    this.services['NanoeSwitch'].setCharacteristic(
-      this.platform.Characteristic.Name, buttonNanoName);
-    this.services['NanoeSwitch'].getCharacteristic(this.platform.Characteristic.On)
-      .onSet(this.setNanoe.bind(this))
-      .onGet(this.getNanoe.bind(this));
-
-    this.services['NanoeSwitch'].addOptionalCharacteristic(
-      this.platform.Characteristic.ConfiguredName);
-    this.services['NanoeSwitch'].setCharacteristic(
-      this.platform.Characteristic.ConfiguredName, buttonNanoName);
+    this.setupToggleSwitch('NanoeSwitch', DehumidifierCommandType.Nanoe, 'NanoE');
 
     //////////
     const smartAppCommand:SmartAppCommand | undefined
@@ -241,27 +181,28 @@ export default class DehumidifierAccessory {
         serviceSwitch.setCharacteristic(this.platform.Characteristic.ConfiguredName, name);
 
         serviceSwitch.getCharacteristic(this.platform.Characteristic.On)
-          .on(CharacteristicEventTypes.SET,
-            (value: CharacteristicValue, callback: CharacteristicSetCallback) => {
+          .onSet((value: CharacteristicValue) => {
 
-              this.platform.log.info(
-                `Setting ${this.accessory.displayName} ${name} to ${value ? 'on' : 'off'}`);
-
-              if(value){
-                this.sendCommandToDevice(
-                  this.accessory.context.device, DehumidifierCommandType.Mode, param[1] as string);
-              }
-
-              callback();
-              this.updateSwitchMode(+param[1]);
-
-            })
-          .on(CharacteristicEventTypes.GET, (callback: CharacteristicGetCallback) => {
-            const mode:number = this.getDeviceInfoNumber(DehumidifierCommandType.Mode);
             this.platform.log.info(
+              `Setting ${this.accessory.displayName} ${name} to ${value ? 'on' : 'off'}`);
+
+            if(value){
+              this.sendCommandToDevice(
+                this.accessory.context.device, DehumidifierCommandType.Mode, param[1] as string);
+              this.updateSwitchMode(+param[1]);
+            } else {
+              // A mode can only be switched, not turned off: snap the
+              // switches back to the current mode instead of pretending
+              // the toggled-off mode became active.
+              this.updateSwitchMode(this.getDeviceInfoNumber(DehumidifierCommandType.Mode));
+            }
+          })
+          .onGet(() => {
+            const mode:number = this.getDeviceInfoNumber(DehumidifierCommandType.Mode);
+            this.platform.log.debug(
               `Getting ${this.accessory.displayName} ${name} `
-              + `status: '${+param[1] === mode ? 'on' : 'off'}}'`);
-            callback(undefined, mode === +param[1]);
+              + `status: '${+param[1] === mode ? 'on' : 'off'}'`);
+            return mode === +param[1];
           });
 
         this.services[subtype] = serviceSwitch;
@@ -272,129 +213,67 @@ export default class DehumidifierAccessory {
     }
 
     // Update characteristic values asynchronously instead of using onGet handlers
-    this.refreshDeviceStatus();
+    this.startStatusPolling();
   }
 
-  /**
-   * Retrieves the device status from Smart App and updates its characteristics.
-   */
-  async refreshDeviceStatus() {
-    this.platform.log.debug(`Accessory: Refresh status for device '${this.accessory.displayName}'`);
+  protected get statusCommandTypes(): string[] {
+    return [
+      DehumidifierCommandType.Power,
+      DehumidifierCommandType.Mode,
+      DehumidifierCommandType.FanMode,
+      DehumidifierCommandType.Buzzer,
+      DehumidifierCommandType.Nanoe,
+      DehumidifierCommandType.TargetHumidity,
+      DehumidifierCommandType.Humidity,
+      DehumidifierCommandType.TankStatus,
+    ];
+  }
 
-    try {
-      const deviceStatus = await this.platform.smartApp.fetchDeviceInfo(
-        this.accessory.context.device,
-        [
-          DehumidifierCommandType.Power,
-          DehumidifierCommandType.Mode,
-          DehumidifierCommandType.FanMode,
-          DehumidifierCommandType.Buzzer,
-          DehumidifierCommandType.Nanoe,
-          DehumidifierCommandType.TargetHumidity,
-          DehumidifierCommandType.Humidity,
-          DehumidifierCommandType.TankStatus,
-        ],
-      );
+  protected get primaryService(): Service {
+    return this.services['HumidifierDehumidifier'];
+  }
 
+  protected onDeviceStatusUpdate(deviceStatus: SmartAppDeviceInfo) {
+    // Power -> Active is handled by BaseAccessory.
 
-      if(deviceStatus === undefined) {
-
-        this.services['HumidifierDehumidifier'].updateCharacteristic(
-          this.platform.Characteristic.Active,
-          new Error('Exception occurred in refreshDeviceStatus()'),
-        );
-
-        return;
-      }
-
-      this.platform.log.debug(JSON.stringify(deviceStatus));
-
-      // Power
-      if (deviceStatus[DehumidifierCommandType.Power] !== undefined) {
-        const active = this.getDeviceInfoNumber(DehumidifierCommandType.Power) === 1
-          ? this.platform.Characteristic.Active.ACTIVE
-          : this.platform.Characteristic.Active.INACTIVE;
-        this.services['HumidifierDehumidifier'].updateCharacteristic(
-          this.platform.Characteristic.Active, active);
-      }
-
-      if (deviceStatus[DehumidifierCommandType.TargetHumidity] !== undefined) {
-        this.services['HumidifierDehumidifier'].updateCharacteristic(
-          this.platform.Characteristic.RelativeHumidityDehumidifierThreshold,
-          this.getDeviceInfoNumber(DehumidifierCommandType.TargetHumidity) * 5 + 40);
-      }
-
-      if (deviceStatus[DehumidifierCommandType.Humidity] !== undefined) {
-        this.services['HumidifierDehumidifier'].updateCharacteristic(
-          this.platform.Characteristic.CurrentRelativeHumidity,
-          this.getDeviceInfoNumber(DehumidifierCommandType.Humidity));
-      }
-
-      if(deviceStatus[DehumidifierCommandType.FanMode] !== undefined) {
-        this.services['HumidifierDehumidifier'].updateCharacteristic(
-          this.platform.Characteristic.RotationSpeed,
-          this.getSpeedVal(this.getDeviceInfoNumber(DehumidifierCommandType.FanMode)));
-      }
-
-
-      if (deviceStatus[DehumidifierCommandType.TankStatus] !== undefined) {
-        this.services['HumidifierDehumidifier'].updateCharacteristic(
-          this.platform.Characteristic.WaterLevel,
-          this.getDeviceInfoNumber(DehumidifierCommandType.TankStatus) === 1 ? 100 : 0);
-      }
-
-      if(deviceStatus[DehumidifierCommandType.Buzzer] !== undefined) {
-        this.services['BuzzerSwitch'].updateCharacteristic(
-          this.platform.Characteristic.On,
-          this.getDeviceInfoNumber(DehumidifierCommandType.Buzzer) === 0);
-      }
-
-      if(deviceStatus[DehumidifierCommandType.Nanoe] !== undefined) {
-        this.services['NanoeSwitch'].updateCharacteristic(
-          this.platform.Characteristic.On,
-          this.getDeviceInfoNumber(DehumidifierCommandType.Nanoe) === 1);
-      }
-
-      ///
-
-      this.updateSwitchMode(this.getDeviceInfoNumber(DehumidifierCommandType.Mode));
-
-
-
-    } catch (error) {
-      this.platform.log.error('An error occurred while refreshing the device status. '
-        + 'Turn on debug mode for more information.');
-
-      // Only log if a Promise rejection reason was provided.
-      // Some errors are already logged at source.
-      if (error) {
-        this.platform.log.debug(error);
-      }
-
-      /**
-       * We should be able to pass an error object to the function to mark a service/accessory
-       * as 'Not Responding' in the Home App.
-       * (Only needs to be set on a single/primary characteristic of an accessory,
-       * and needs to be updated with a valid value when the accessory is available again.
-       * The error message text is for internal use only, and is not passed to the Home App.)
-       *
-       * Problem: The Typescript definitions suggest this is not permitted -  commenting for now.
-       */
-      /*
-      this.service.updateCharacteristic(
-        this.platform.Characteristic.Active,
-        new Error('Exception occurred in refreshDeviceStatus()'),
-      );
-      */
+    if (deviceStatus[DehumidifierCommandType.TargetHumidity] !== undefined) {
+      this.services['HumidifierDehumidifier'].updateCharacteristic(
+        this.platform.Characteristic.RelativeHumidityDehumidifierThreshold,
+        this.getDeviceInfoNumber(DehumidifierCommandType.TargetHumidity) * 5 + 40);
     }
 
-    // Schedule continuous device updates on the first run
-    if (!this._refreshInterval) {
-      this._refreshInterval = setInterval(
-        this.refreshDeviceStatus.bind(this),
-        DEVICE_STATUS_REFRESH_INTERVAL,
-      );
+    if (deviceStatus[DehumidifierCommandType.Humidity] !== undefined) {
+      this.services['HumidifierDehumidifier'].updateCharacteristic(
+        this.platform.Characteristic.CurrentRelativeHumidity,
+        this.getDeviceInfoNumber(DehumidifierCommandType.Humidity));
     }
+
+    if(deviceStatus[DehumidifierCommandType.FanMode] !== undefined) {
+      this.services['HumidifierDehumidifier'].updateCharacteristic(
+        this.platform.Characteristic.RotationSpeed,
+        this.fanSpeedModeToPercent(this.getDeviceInfoNumber(DehumidifierCommandType.FanMode)));
+    }
+
+
+    if (deviceStatus[DehumidifierCommandType.TankStatus] !== undefined) {
+      this.services['HumidifierDehumidifier'].updateCharacteristic(
+        this.platform.Characteristic.WaterLevel,
+        this.getDeviceInfoNumber(DehumidifierCommandType.TankStatus) === 1 ? 100 : 0);
+    }
+
+    if(deviceStatus[DehumidifierCommandType.Buzzer] !== undefined) {
+      this.services['BuzzerSwitch'].updateCharacteristic(
+        this.platform.Characteristic.On,
+        this.getDeviceInfoNumber(DehumidifierCommandType.Buzzer) === 0);
+    }
+
+    if(deviceStatus[DehumidifierCommandType.Nanoe] !== undefined) {
+      this.services['NanoeSwitch'].updateCharacteristic(
+        this.platform.Characteristic.On,
+        this.getDeviceInfoNumber(DehumidifierCommandType.Nanoe) === 1);
+    }
+
+    this.updateSwitchMode(this.getDeviceInfoNumber(DehumidifierCommandType.Mode));
   }
 
   updateSwitchMode(mode: number) {
@@ -408,49 +287,11 @@ export default class DehumidifierAccessory {
       smartAppCommand.Parameters.forEach((param:SmartAppParameter) => {
 
         const subtype:string = 'Mode_' + param[1];
-        this.services[subtype].updateCharacteristic(
+        this.services[subtype]?.updateCharacteristic(
           this.platform.Characteristic.On, mode === +param[1]);
       });
 
     }
-  }
-
-  private getDeviceInfoNumber(commandType:string, defaultValue:number|undefined = 0):number {
-    try{
-
-      const value:number = +this.platform.smartApp.getDeviceInfo(
-        this.accessory.context.device, commandType, defaultValue.toString());
-      const CommandName = this.platform.smartApp.getCommandName(
-        this.accessory.context.device, commandType);
-
-      this.platform.log.debug(`getDeviceInfoNumber('${commandType}':'${CommandName}'): `+value);
-
-      return value;
-
-    }catch(err){
-      this.platform.log.debug(`getDeviceInfoNumber('${commandType}' Error: ${err}`);
-    }
-
-    return defaultValue;
-  }
-
-  async setActive(value: CharacteristicValue) {
-    this.platform.log.debug(`Accessory: setActive() for device '${this.accessory.displayName}'`);
-
-    this.sendCommandToDevice(
-      this.accessory.context.device, DehumidifierCommandType.Power,
-      value === this.platform.Characteristic.Active.ACTIVE ? '1' : '0');
-
-    this.services['HumidifierDehumidifier'].updateCharacteristic(
-      this.platform.Characteristic.Active, value);
-  }
-
-  async getActive():Promise<CharacteristicValue> {
-
-    const value:number = this.getDeviceInfoNumber(DehumidifierCommandType.Power);
-    return value === 1
-      ? this.platform.Characteristic.Active.ACTIVE
-      : this.platform.Characteristic.Active.INACTIVE;
   }
 
   async getHumidifierDehumidifierState():Promise<CharacteristicValue> {
@@ -501,133 +342,11 @@ export default class DehumidifierAccessory {
 
   }
 
-  getSpeedVal(value:number){
-    let speed = 0;
-
-
-    switch(value){
-      case DehumidifierFanSpeedMode.Fast:
-        speed = 100;
-        break;
-
-      case DehumidifierFanSpeedMode.Normal:
-        speed = 50;
-        break;
-
-      case DehumidifierFanSpeedMode.Silent:
-        speed = 20;
-        break;
-
-
-      case DehumidifierFanSpeedMode.Auto:
-      default:
-        speed = 0;
-    }
-
-    return speed;
-
-  }
-
-  async setRotationSpeed(value: CharacteristicValue) {
-
-    this.platform.log.debug(
-      `Accessory: setRotationSpeed() for device '${this.accessory.displayName}'`);
-    let speedMode = DehumidifierFanSpeedMode.Auto;
-
-    if(+value > 0 && +value < 25){
-      speedMode = DehumidifierFanSpeedMode.Silent;
-    } else if(+value >= 25 && +value < 75){
-      speedMode = DehumidifierFanSpeedMode.Normal;
-    } else if(+value >= 75){
-      speedMode = DehumidifierFanSpeedMode.Fast;
-    } else{
-      speedMode = DehumidifierFanSpeedMode.Auto;
-    }
-
-    this.sendCommandToDevice(
-      this.accessory.context.device, DehumidifierCommandType.FanMode, speedMode.toString());
-
-    this.services['HumidifierDehumidifier']
-      .getCharacteristic(this.platform.Characteristic.RotationSpeed)
-      .updateValue(this.getSpeedVal(speedMode));
-
-  }
-
-  async getRotationSpeed():Promise<CharacteristicValue> {
-
-    const value:number = this.getDeviceInfoNumber(DehumidifierCommandType.FanMode);
-    return this.getSpeedVal(value);
-
-  }
-
   async getWaterLevel():Promise<CharacteristicValue> {
 
     const value:number = this.getDeviceInfoNumber(DehumidifierCommandType.TankStatus);
 
     return value === 1 ? 100 : 0;
   }
-
-  async setBuzzer(value: CharacteristicValue) {
-    this.platform.log.debug(`Accessory: setBuzzer() for device '${this.accessory.displayName}'`);
-
-    // Inverted on purpose: the device treats '0' as buzzer-on and '1' as muted.
-    this.sendCommandToDevice(
-      this.accessory.context.device, DehumidifierCommandType.Buzzer, value ? '0' : '1');
-
-    this.services['BuzzerSwitch'].getCharacteristic(this.platform.Characteristic.On)
-      .updateValue(value);
-  }
-
-  async getBuzzer():Promise<CharacteristicValue> {
-
-    return this.getDeviceInfoNumber(DehumidifierCommandType.Buzzer) === 0;
-
-  }
-
-  async setNanoe(value: CharacteristicValue) {
-    this.platform.log.debug(`Accessory: setNanoe() for device '${this.accessory.displayName}'`);
-
-    this.sendCommandToDevice(
-      this.accessory.context.device, DehumidifierCommandType.Nanoe, value ? '1' : '0');
-
-    this.services['NanoeSwitch'].getCharacteristic(this.platform.Characteristic.On)
-      .updateValue(value);
-  }
-
-  async getNanoe():Promise<CharacteristicValue> {
-
-    return this.getDeviceInfoNumber(DehumidifierCommandType.Nanoe) === 1;
-
-  }
-
-  async sendCommandToDevice(device: SmartAppDevice, command: string, value: string) {
-    try {
-      // Only send non-empty payloads to prevent a '500 Internal Server Error'
-      this.platform.log.debug(
-        `Sending command '${command}' with value '${value}' `
-        + `to device '${this.accessory.displayName}'`);
-
-      await this.platform.smartApp.doCommand(device, command, value);
-
-    } catch (error) {
-      this.platform.log.error('An error occurred while sending a device update. '
-        + 'Turn on debug mode for more information.');
-
-      // Only log if a Promise rejection reason was provided.
-      // Some errors are already logged at source.
-      if (error) {
-        this.platform.log.debug(error);
-      }
-    }
-  }
-
-  // Stops the background status polling (called on shutdown or when the device is removed).
-  dispose() {
-    if (this._refreshInterval) {
-      clearInterval(this._refreshInterval);
-      this._refreshInterval = undefined;
-    }
-  }
-
 
 }

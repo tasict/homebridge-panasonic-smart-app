@@ -1,5 +1,5 @@
 import PanasonicPlatformLogger from './logger';
-import axios, { AxiosError, AxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import {
   LOGIN_TOKEN_REFRESH_INTERVAL,
 } from './settings';
@@ -16,6 +16,8 @@ import {
   APP_TOKEN,
   REQUEST_TIMEOUT,
   SECONDS_BETWEEN_REQUEST,
+  MAX_PENDING_POLL_REQUESTS,
+  RATE_LIMIT_PAUSE_SECONDS,
   EXCEPTION_DEVICE_OFFLINE,
   EXCEPTION_DEVICE_NOT_RESPONDING,
   EXCEPTION_INVALID_REFRESH_TOKEN,
@@ -25,7 +27,14 @@ import {
 
 import {
   PanasonicRefreshTokenNotFound,
+  TransientApiError,
 } from './exceptions';
+
+interface QueuedRequest {
+  config: AxiosRequestConfig;
+  resolve: (response: AxiosResponse) => void;
+  reject: (error: unknown) => void;
+}
 
 /**
  * This class exposes login, device status fetching, and device status update functions.
@@ -39,8 +48,16 @@ export default class SmartAppApi {
   private _commands: Record<string, SmartAppCommandList>;
   private _loginRefreshInterval: NodeJS.Timeout | undefined;
 
-  // Serialises outbound requests and spaces them out to avoid the API rate limit.
-  private _requestQueue: Promise<unknown> = Promise.resolve();
+  // Outbound requests are sent one at a time with a fixed gap between them
+  // (SECONDS_BETWEEN_REQUEST) to avoid the API rate limit. User commands go
+  // through the priority queue so a backlog of status polls can never delay
+  // them; the poll queue is bounded and drops excess polls instead of growing.
+  private _commandQueue: QueuedRequest[] = [];
+  private _pollQueue: QueuedRequest[] = [];
+  private _queueRunning = false;
+  private _pausedUntil = 0;
+  private _lastRequestAt = 0;
+  private _disposed = false;
   private _isReloggingIn = false;
 
   constructor(
@@ -58,31 +75,111 @@ export default class SmartAppApi {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  // Stops the periodic token refresh (called on Homebridge shutdown).
+  // Stops the periodic token refresh and drains the request queues
+  // (called on Homebridge shutdown).
   dispose() {
+    this._disposed = true;
+
     if (this._loginRefreshInterval !== undefined) {
       clearInterval(this._loginRefreshInterval);
       this._loginRefreshInterval = undefined;
     }
+
+    const pending = [...this._commandQueue, ...this._pollQueue];
+    this._commandQueue.length = 0;
+    this._pollQueue.length = 0;
+    for (const item of pending) {
+      item.reject(new TransientApiError('API client has been disposed.'));
+    }
   }
 
   /**
-   * Runs all device requests through a single FIFO queue with a fixed gap
-   * between them (SECONDS_BETWEEN_REQUEST) and a hard timeout (REQUEST_TIMEOUT),
-   * so concurrent accessory refreshes don't trip the API rate limit.
+   * Enqueues a request. Commands (priority) are served before status polls,
+   * and the poll queue is bounded: when the server is slow enough that polls
+   * arrive faster than they can be sent, new polls are dropped instead of
+   * queueing up without bound.
    */
-  private request(config: AxiosRequestConfig) {
-    const run = this._requestQueue.then(() => axios.request({
-      timeout: REQUEST_TIMEOUT * 1000,
-      ...config,
-    }));
+  private request(
+    config: AxiosRequestConfig,
+    priority = false,
+  ): Promise<AxiosResponse> {
+    if (this._disposed) {
+      return Promise.reject(new TransientApiError('API client has been disposed.'));
+    }
 
-    // Keep the chain alive regardless of success/failure, then space out the next call.
-    this._requestQueue = run
-      .catch(() => undefined)
-      .then(() => this.delay(SECONDS_BETWEEN_REQUEST * 1000));
+    if (!priority && this._pollQueue.length >= MAX_PENDING_POLL_REQUESTS) {
+      return Promise.reject(new TransientApiError(
+        'Request queue is full - dropping status poll. '
+        + 'The Smart App server is probably slow or unreachable.'));
+    }
 
-    return run;
+    return new Promise<AxiosResponse>((resolve, reject) => {
+      (priority ? this._commandQueue : this._pollQueue).push({ config, resolve, reject });
+      this.runQueue();
+    });
+  }
+
+  /**
+   * Sends queued requests one at a time with a fixed gap between them
+   * (SECONDS_BETWEEN_REQUEST) and a hard timeout (REQUEST_TIMEOUT). Honours
+   * the rate-limit pause set by handleNetworkRequestError on HTTP 429.
+   */
+  private async runQueue() {
+    if (this._queueRunning) {
+      return;
+    }
+    this._queueRunning = true;
+
+    try {
+      while (!this._disposed) {
+        if (this._commandQueue.length === 0 && this._pollQueue.length === 0) {
+          break;
+        }
+
+        // Honour the rate-limit pause before picking an item, and sleep in
+        // short slices: a priority command arriving during the pause is
+        // then still served first, and dispose() is not held up by an
+        // already-dequeued request sleeping through the pause.
+        const pause = this._pausedUntil - Date.now();
+        if (pause > 0) {
+          await this.delay(Math.min(pause, 1000));
+          continue;
+        }
+
+        // Space requests relative to the previous send instead of sleeping
+        // after each one, so the queue exits promptly once drained.
+        const wait = this._lastRequestAt + SECONDS_BETWEEN_REQUEST * 1000 - Date.now();
+        if (wait > 0) {
+          await this.delay(wait);
+          continue;
+        }
+
+        const item = this._commandQueue.shift() ?? this._pollQueue.shift();
+        if (item === undefined) {
+          break;
+        }
+
+        // Requests may sit in the queue across a token refresh or re-login:
+        // always send with the current token, not the one captured at
+        // enqueue time, or the whole backlog would fail with HTTP 417.
+        if (item.config.headers?.cptoken !== undefined) {
+          item.config.headers.cptoken = this._cp_token;
+        }
+
+        this._lastRequestAt = Date.now();
+        try {
+          const response = await axios.request({
+            timeout: REQUEST_TIMEOUT * 1000,
+            ...item.config,
+          });
+          item.resolve(response);
+        } catch (error) {
+          item.reject(error);
+        }
+      }
+    } finally {
+      this._queueRunning = false;
+    }
   }
 
   /**
@@ -111,6 +208,19 @@ export default class SmartAppApi {
   async login() {
     this.log.debug('Smart App: login()');
 
+    // login() bypasses the request queue, so it must honour the global
+    // rate-limit pause itself instead of hammering the server during a 429.
+    const pause = this._pausedUntil - Date.now();
+    if (pause > 0) {
+      this.log.debug(`Smart App - login(): waiting ${Math.ceil(pause / 1000)}s `
+        + 'for the rate-limit pause before logging in.');
+      await this.delay(pause);
+    }
+
+    if (this._disposed) {
+      throw new TransientApiError('API client has been disposed.');
+    }
+
     if(this._loginRefreshInterval !== undefined){
       clearInterval(this._loginRefreshInterval);
     }
@@ -135,13 +245,31 @@ export default class SmartAppApi {
         this._refresh_token = response.data['RefreshToken'];
         this._cp_token = response.data['CPToken'];
 
+        // A login resolving after dispose() (e.g. a 417-triggered re-login
+        // racing Homebridge shutdown) must not re-arm the refresh interval:
+        // nothing would ever clear it again.
+        if (this._disposed) {
+          return;
+        }
+
         // Set an interval to refresh the login token periodically.
-        this._loginRefreshInterval = setInterval(this.refresh_token.bind(this),
-          LOGIN_TOKEN_REFRESH_INTERVAL);
+        // The rejection must be caught here: an unhandled rejection from the
+        // interval callback would crash the whole Homebridge process.
+        this._loginRefreshInterval = setInterval(() => {
+          this.refresh_token().catch(() => {
+            this.log.error('Periodic token refresh failed. '
+              + 'Will re-login when the server reports an expired token.');
+          });
+        }, LOGIN_TOKEN_REFRESH_INTERVAL);
       })
       .catch((error: AxiosError) => {
-        this.log.error('Smart App - login(): Error');
-        this.log.error(JSON.stringify(error, null, 2));
+        if (error.response?.status === 429) {
+          this._pausedUntil = Date.now() + RATE_LIMIT_PAUSE_SECONDS * 1000;
+          this.log.error('Reached API rate limit during login. '
+            + `Pausing all requests for ${RATE_LIMIT_PAUSE_SECONDS} seconds.`);
+        }
+        this.log.error(`Smart App - login(): Error - ${error.message}`);
+        this.log.debug(JSON.stringify(error, null, 2));
         throw error;
       });
   }
@@ -163,7 +291,7 @@ export default class SmartAppApi {
         'User-Agent': USER_AGENT,
         'cptoken': this._cp_token,
       },
-    })
+    }, true)
       .then((response) => {
 
         this.log.debug('Smart App - refresh_token(): Success');
@@ -177,7 +305,7 @@ export default class SmartAppApi {
       .catch((error: AxiosError) => {
         this.log.debug('Smart App - refresh_token(): Error');
         this.handleNetworkRequestError(error);
-        return Promise.reject();
+        return Promise.reject(new Error('Token refresh failed.'));
       });
 
   }
@@ -188,8 +316,8 @@ export default class SmartAppApi {
     this._devices = [];
 
     if (!this._cp_token) {
-      return Promise.reject('No auth token available (login probably failed). '
-        + 'Check your credentials and restart Homebridge.');
+      return Promise.reject(new Error('No auth token available (login probably failed). '
+        + 'Check your credentials and restart Homebridge.'));
     }
 
     return this.request({
@@ -201,7 +329,7 @@ export default class SmartAppApi {
         'User-Agent': USER_AGENT,
         'cptoken': this._cp_token,
       },
-    })
+    }, true)
       .then((response) => {
 
         this.log.debug('Smart App - fetchDevices(): Success');
@@ -229,23 +357,25 @@ export default class SmartAppApi {
       .catch((error: AxiosError) => {
         this.log.debug('Smart App - fetchDevices(): Error');
         this.handleNetworkRequestError(error);
-        return Promise.reject();
+        return Promise.reject(new Error('Fetching the device list failed.'));
       });
   }
 
+  /**
+   * Fetches the requested status codes and returns the cached status map.
+   * Returns `undefined` when the device request failed, and `null` when the
+   * failure was a global condition (full queue, rate-limit pause, shutdown)
+   * that callers must not attribute to the device.
+   */
   async fetchDeviceInfo(
     device: SmartAppDevice,
     options: string[] | undefined = ['0x00', '0x01', '0x03', '0x04'],
-  ): Promise<SmartAppDeviceInfo | undefined> {
+  ): Promise<SmartAppDeviceInfo | null | undefined> {
     this.log.debug(`Smart App: fetchDeviceInfo() for device GUID '${device.NickName}'`);
 
     if (!this._cp_token) {
-      return Promise.reject('No auth token available (login probably failed). '
-        + 'Check your credentials and restart Homebridge.');
-    }
-
-    if (!device) {
-      return Promise.reject('Cannot get device info for undefined device.');
+      return Promise.reject(new Error('No auth token available (login probably failed). '
+        + 'Check your credentials and restart Homebridge.'));
     }
 
     const commands: { DeviceID: number; CommandTypes: { CommandType: string }[] } = {
@@ -286,7 +416,19 @@ export default class SmartAppApi {
       .catch((error: AxiosError) => {
 
         this.log.debug(`Smart App - fetchDeviceInfo() for '${device.NickName}': Error`);
+
+        if (error instanceof TransientApiError) {
+          return null;
+        }
+
         this.handleNetworkRequestError(error, device);
+
+        // A 429 is a global condition already handled by the queue pause -
+        // don't let the accessory whose poll drew it think its device failed.
+        if (error.response?.status === 429) {
+          return null;
+        }
+
         return undefined;
       });
   }
@@ -295,16 +437,14 @@ export default class SmartAppApi {
     this.log.debug(`Smart App: doCommand() for '${device.NickName}' : '${command}' : '${value}'`);
 
     if (!this._cp_token) {
-      return Promise.reject('No auth token available (login probably failed). '
-        + 'Check your credentials and restart Homebridge.');
-    }
-
-    if (!device) {
-      return Promise.reject('Cannot set device status for undefined deviceGuid.');
+      return Promise.reject(new Error('No auth token available (login probably failed). '
+        + 'Check your credentials and restart Homebridge.'));
     }
 
     const payload = { 'DeviceID': 1, 'CommandType': command, 'Value': value };
 
+    // User commands take the priority queue so they are never stuck behind
+    // a backlog of status polls.
     return this.request({
       method: 'get',
       url: BASE_URL + '/DeviceSetCommand',
@@ -317,7 +457,7 @@ export default class SmartAppApi {
         'gwid': device.GWID,
       },
       params: payload,
-    })
+    }, true)
       .then((response) => {
         this.log.debug('Smart App - doCommand(): Success');
         this.log.debug(response.data);
@@ -325,8 +465,11 @@ export default class SmartAppApi {
       })
       .catch((error: AxiosError) => {
         this.log.debug('Smart App - doCommand(): Error');
+        if (error instanceof TransientApiError) {
+          throw error;
+        }
         this.handleNetworkRequestError(error, device);
-        return Promise.reject();
+        return Promise.reject(new Error(`Sending command '${command}' failed.`));
       });
   }
 
@@ -446,7 +589,10 @@ export default class SmartAppApi {
       }
 
     } else if (status === 429) {
-      this.log.error('Reached API rate limit. Please try again later.');
+      // Pause the whole queue for a while instead of hammering the server.
+      this._pausedUntil = Date.now() + RATE_LIMIT_PAUSE_SECONDS * 1000;
+      this.log.error('Reached API rate limit. '
+        + `Pausing all requests for ${RATE_LIMIT_PAUSE_SECONDS} seconds.`);
     } else {
       this.log.debug(error.request);
       this.log.debug(error.message);

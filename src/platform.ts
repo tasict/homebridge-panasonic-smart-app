@@ -14,7 +14,7 @@ import ClimateAccessory from './accessories/climate';
 import AirPurifierAccessory from './accessories/airpurifier';
 
 import PanasonicPlatformLogger from './logger';
-import { PanasonicAccessoryContext, PanasonicPlatformConfig } from './types';
+import { PanasonicAccessoryContext, PanasonicPlatformConfig, SmartAppDevice } from './types';
 import {
   LOGIN_RETRY_DELAY,
   MAX_NO_OF_FAILED_LOGIN_ATTEMPTS,
@@ -251,22 +251,55 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
 
       // At this point, we set up all devices from Smart App, but we did not unregister
       // cached devices that do not exist on the Smart App account anymore.
-      for (const cachedAccessory of this.accessories) {
+      // Guard: if the server returned an empty device list (e.g. a temporary
+      // glitch that still reports success), skip the cleanup - otherwise a
+      // single bad response would wipe every cached accessory and the user
+      // would lose their HomeKit room assignments and automations.
+      if (smartAppDevices.length === 0) {
+        this.log.info('Smart App returned no devices - skipping cached accessory cleanup. '
+          + 'If you really removed every device from your account, remove the stale '
+          + 'accessories manually via the Homebridge UI.');
+        return;
+      }
 
-        if (cachedAccessory.context.device) {
-          const guid = cachedAccessory.context.device.GWID;
-          const smartAppDevice = smartAppDevices.find(device => device.GWID === guid);
+      const isOnAccount = (
+        devices: SmartAppDevice[],
+        accessory: PlatformAccessory<PanasonicAccessoryContext>,
+      ) => devices.some(device => device.GWID === accessory.context.device?.GWID);
 
-          if (smartAppDevice === undefined) {
-            // This cached devices does not exist on the Smart App account (anymore).
-            this.log.info(`Removing accessory '${cachedAccessory.displayName}' (${guid}) `
-              + 'because it does not exist on the Smart App account (anymore?).');
+      let staleAccessories = this.accessories.filter(
+        accessory => accessory.context.device && !isOnAccount(smartAppDevices, accessory));
 
-            this.handlers.get(cachedAccessory.UUID)?.dispose();
-            this.handlers.delete(cachedAccessory.UUID);
+      if (staleAccessories.length > 0) {
+        // A transiently incomplete device list must not unregister accessories
+        // (the user would lose their HomeKit room assignments and automations),
+        // so confirm the absence with a second fetch before removing anything.
+        const confirmedDevices = await this.smartApp.fetchDevices();
 
-            this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [cachedAccessory]);
-          }
+        if (confirmedDevices.length === 0) {
+          this.log.info('Smart App returned no devices on the confirmation fetch '
+            + '- skipping cached accessory cleanup.');
+          return;
+        }
+
+        staleAccessories = staleAccessories.filter(
+          accessory => !isOnAccount(confirmedDevices, accessory));
+      }
+
+      for (const cachedAccessory of staleAccessories) {
+        // This cached device does not exist on the Smart App account (anymore).
+        const guid = cachedAccessory.context.device?.GWID;
+        this.log.info(`Removing accessory '${cachedAccessory.displayName}' (${guid}) `
+          + 'because it does not exist on the Smart App account (anymore?).');
+
+        this.handlers.get(cachedAccessory.UUID)?.dispose();
+        this.handlers.delete(cachedAccessory.UUID);
+
+        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [cachedAccessory]);
+
+        const index = this.accessories.indexOf(cachedAccessory);
+        if (index !== -1) {
+          this.accessories.splice(index, 1);
         }
       }
     } catch (error) {
