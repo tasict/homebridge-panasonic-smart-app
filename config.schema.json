@@ -4,28 +4,26 @@
   "singular": true,
   "schema": {
     "type": "object",
+    "required": ["name", "email", "password"],
     "properties": {
       "name": {
         "title": "Plugin Name",
         "description": "This name will be displayed in the Homebridge log.",
         "type": "string",
         "default": "Homebridge Panasonic Smart App Platform",
-        "placeholder": "Homebridge Panasonic Smart App Platform",
-        "required": true
+        "placeholder": "Homebridge Panasonic Smart App Platform"
       },
       "email": {
         "title": "Email",
         "description": "It is recommended to set up a separate account for Homebridge and share the devices from your main account.",
         "type": "string",
         "placeholder": "Email",
-        "required": true,
         "format": "email"
       },
       "password": {
         "title": "Password",
         "type": "string",
-        "placeholder": "Password",
-        "required": true
+        "placeholder": "Password"
       },
       "debugMode": {
         "title": "Debug Mode",
