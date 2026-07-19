@@ -1,13 +1,12 @@
 # Homebridge Panasonic Smart App Platform
 
-[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/homebridge/wiki/Verified-Plugins)
 [![GitHub version](https://img.shields.io/github/package-json/v/tasict/homebridge-panasonic-smart-app?label=GitHub)](https://github.com/tasict/homebridge-panasonic-smart-app)
 [![npm version](https://img.shields.io/npm/v/homebridge-panasonic-smart-app?color=%23cb3837&label=npm)](https://www.npmjs.com/package/homebridge-panasonic-smart-app)
 
-`homebridge-panasonic-smart-app` is a dynamic platform plugin for [Homebridge](https://homebridge.io) that provides HomeKit support for Panasonic single and multi-split air conditioning systems.
+`homebridge-panasonic-smart-app` is a dynamic platform plugin for [Homebridge](https://homebridge.io) that provides HomeKit support for devices registered in the Panasonic (Taiwan) Smart App, including air conditioners, dehumidifiers, and air purifiers.
 
 ## How it works
-The plugin communicates with your AC units through the Smart App service. This means your units must be registered and set up there before you can use this plugin.
+The plugin communicates with your devices through the Panasonic (Taiwan) Smart App cloud service. This means your devices must be registered and set up there before you can use this plugin.
 
 All devices that are set up on your Smart App account will appear in your Home app. If you remove a device from your Smart App account, it will also disappear from your Home app after you restart Homebridge.
 
