@@ -1,5 +1,6 @@
 # Homebridge Panasonic Smart App Platform
 
+[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/plugins)
 [![GitHub version](https://img.shields.io/github/package-json/v/tasict/homebridge-panasonic-smart-app?label=GitHub)](https://github.com/tasict/homebridge-panasonic-smart-app)
 [![npm version](https://img.shields.io/npm/v/homebridge-panasonic-smart-app?color=%23cb3837&label=npm)](https://www.npmjs.com/package/homebridge-panasonic-smart-app)
 
