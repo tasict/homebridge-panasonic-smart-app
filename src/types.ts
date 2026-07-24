@@ -29,6 +29,18 @@ export interface LocalDeviceEndpoint {
   mac: string;
   friendlyName: string;
   modelName: string;
+  modelNumber: string;
+  firmware: string;
+}
+
+// device.xml details surfaced on the HomeKit AccessoryInformation service.
+export interface LocalDeviceMetadata {
+  // device.xml <modelName> - the Wi-Fi module model (e.g. CZ-T006).
+  moduleModel: string;
+  // device.xml <modelNumber>.
+  modelNumber: string;
+  // Firmware version parsed from <modelDescription> (SW_VER).
+  firmware: string;
 }
 
 export interface PanasonicAccessoryContext {

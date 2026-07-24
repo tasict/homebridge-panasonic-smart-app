@@ -10,6 +10,7 @@ import {
   PanasonicPlatformConfig,
   SmartAppCommandList,
   LocalDeviceOverride,
+  LocalDeviceMetadata,
 } from './types';
 
 import {
@@ -76,6 +77,9 @@ export default class SmartAppApi {
   // reads and commands go over the LAN first and only fall back to the cloud
   // on failure or an unsupported command. Clients are keyed by GWID (= MAC).
   private _localClients = new Map<string, TaiSeiaClient>();
+  // device.xml metadata (module model, firmware) keyed by GWID, for the
+  // HomeKit AccessoryInformation service.
+  private _localMeta = new Map<string, LocalDeviceMetadata>();
   private readonly _localEnabled: boolean;
   private readonly _localScanSubnet: boolean;
   private readonly _localDevicesOverride: LocalDeviceOverride[];
@@ -125,6 +129,7 @@ export default class SmartAppApi {
       this._localRediscoverInterval = undefined;
     }
     this._localClients.clear();
+    this._localMeta.clear();
 
     const pending = [...this._commandQueue, ...this._pollQueue];
     this._commandQueue.length = 0;
@@ -534,6 +539,7 @@ export default class SmartAppApi {
       }
 
       const clients = new Map<string, TaiSeiaClient>();
+      const meta = new Map<string, LocalDeviceMetadata>();
 
       // 1) Manual overrides win and skip network discovery for those devices.
       for (const override of this._localDevicesOverride) {
@@ -571,9 +577,16 @@ export default class SmartAppApi {
           const endpoint = await new TaiSeiaClient(host, this.log, 0)
             .fetchDeviceEndpoint();
           const device = devicesByGwid.get(endpoint.mac);
-          if (device && !clients.has(endpoint.mac)) {
-            clients.set(endpoint.mac, new TaiSeiaClient(
-              host, this.log, Number(device.DeviceType)));
+          if (device) {
+            meta.set(endpoint.mac, {
+              moduleModel: endpoint.modelName,
+              modelNumber: endpoint.modelNumber,
+              firmware: endpoint.firmware,
+            });
+            if (!clients.has(endpoint.mac)) {
+              clients.set(endpoint.mac, new TaiSeiaClient(
+                host, this.log, Number(device.DeviceType)));
+            }
           }
         } catch (error) {
           this.log.debug(`Local discovery: probing ${host} failed - `
@@ -582,6 +595,7 @@ export default class SmartAppApi {
       }));
 
       this._localClients = clients;
+      this._localMeta = meta;
 
       if (clients.size > 0) {
         const summary = Array.from(clients.entries(), ([gwid, client]) =>
@@ -615,6 +629,14 @@ export default class SmartAppApi {
       return undefined;
     }
     return this._localClients.get(this.normalizeGwid(device.GWID));
+  }
+
+  /**
+   * Returns the device.xml metadata (module model, firmware) for a device, or
+   * undefined when it was not (yet) reached locally.
+   */
+  public getLocalMetadata(device: SmartAppDevice): LocalDeviceMetadata | undefined {
+    return this._localMeta.get(this.normalizeGwid(device.GWID));
   }
 
   /**

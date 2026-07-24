@@ -217,15 +217,20 @@ export class TaiSeiaClient {
   async fetchDeviceEndpoint(): Promise<LocalDeviceEndpoint> {
     const xml = await this.httpRequest(LOCAL_DEVICE_XML_PATH, 'GET', {});
 
+    // modelDescription looks like: "WiFi with SAANET Module:SW_VER 2.1.2 ...".
+    const firmware = xmlTag(xml, 'modelDescription').match(/SW_VER\s+([0-9.]+)/i);
+
     const endpoint: LocalDeviceEndpoint = {
       host: this.host,
       mac: macFromUdn(xmlTag(xml, 'UDN')),
       friendlyName: xmlTag(xml, 'friendlyName'),
       modelName: xmlTag(xml, 'modelName'),
+      modelNumber: xmlTag(xml, 'modelNumber'),
+      firmware: firmware ? firmware[1] : '',
     };
 
-    this.log.debug(
-      `TaiSEIA: ${this.host} -> mac=${endpoint.mac} model=${endpoint.modelName}`);
+    this.log.debug(`TaiSEIA: ${this.host} -> mac=${endpoint.mac} `
+      + `module=${endpoint.modelName} fw=${endpoint.firmware}`);
     return endpoint;
   }
 }

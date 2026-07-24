@@ -43,6 +43,7 @@ export default abstract class BaseAccessory {
   private _consecutiveRefreshFailures = 0;
   private _intervalsToSkip = 0;
   private _markedNotResponding = false;
+  private _localInfoApplied = false;
 
   constructor(
     protected readonly platform: PanasonicPlatform,
@@ -63,6 +64,42 @@ export default abstract class BaseAccessory {
         this.platform.Characteristic.SerialNumber,
         accessory.context.device?.GWID || 'Unknown',
       );
+  }
+
+  /**
+   * Adds the module model and firmware read from the device's local device.xml
+   * to the AccessoryInformation service (HardwareRevision / FirmwareRevision).
+   * The cloud appliance Model is left untouched. Applied once, as soon as
+   * local discovery (which runs in the background) has surfaced the metadata.
+   */
+  private applyLocalDeviceInformation() {
+    if (this._localInfoApplied) {
+      return;
+    }
+
+    const meta = this.platform.smartApp.getLocalMetadata(this.accessory.context.device);
+    if (meta === undefined) {
+      return;
+    }
+
+    const info = this.accessory.getService(this.platform.Service.AccessoryInformation);
+    if (info === undefined) {
+      return;
+    }
+
+    if (meta.moduleModel) {
+      info.setCharacteristic(
+        this.platform.Characteristic.HardwareRevision, meta.moduleModel);
+    }
+    if (meta.firmware) {
+      info.setCharacteristic(
+        this.platform.Characteristic.FirmwareRevision, meta.firmware);
+    }
+
+    this.platform.log.debug(
+      `Accessory '${this.accessory.displayName}': applied local device info `
+      + `(module '${meta.moduleModel}', firmware '${meta.firmware}').`);
+    this._localInfoApplied = true;
   }
 
   // Command types fetched by every status poll.
@@ -134,6 +171,10 @@ export default abstract class BaseAccessory {
 
       this._consecutiveRefreshFailures = 0;
       this._intervalsToSkip = 0;
+
+      // Local discovery runs in the background, so the module's device.xml
+      // details may only become available a poll or two after startup.
+      this.applyLocalDeviceInformation();
 
       // Reflect the power state on the primary service. Skipped when the
       // response is missing the Power status - unless the accessory is
