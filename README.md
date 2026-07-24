@@ -7,9 +7,9 @@
 `homebridge-panasonic-smart-app` is a dynamic platform plugin for [Homebridge](https://homebridge.io) that provides HomeKit support for devices registered in the Panasonic (Taiwan) Smart App, including air conditioners, dehumidifiers, and air purifiers.
 
 ## How it works
-The plugin communicates with your devices through the Panasonic (Taiwan) Smart App cloud service. This means your devices must be registered and set up there before you can use this plugin.
+The plugin discovers your devices through the Panasonic (Taiwan) Smart App cloud service, so your devices must be registered and set up there first. Once discovered, when a device's Wi-Fi module can be reached on your local network the plugin talks to it **directly over the LAN** and only falls back to the cloud when the local path is unavailable — this is faster and avoids the cloud rate limit. See [Local control](#local-control).
 
-All devices that are set up on your Smart App account will appear in your Home app. If you remove a device from your Smart App account, it will also disappear from your Home app after you restart Homebridge.
+By default every supported device on your account appears in your Home app. You can choose which devices to expose from the plugin's settings screen — see [Choosing which devices appear in HomeKit](#choosing-which-devices-appear-in-homekit). If you remove a device from your Smart App account, it also disappears from your Home app after you restart Homebridge.
 
 ## Smart App account
 
@@ -22,11 +22,13 @@ Configure the plugin through the settings UI or directly in the JSON editor:
 {
   "platforms": [
     {
-        "platform": "Panasonic Smart App Platform",
-        "name": "Homebridge Panasonic Smart App Platform",
-        "email": "mail@example.com",
-        "password": "********",
-        "debugMode": false,
+      "platform": "Panasonic Smart App Platform",
+      "name": "Homebridge Panasonic Smart App Platform",
+      "email": "mail@example.com",
+      "password": "********",
+      "localControl": true,
+      "localScanSubnet": true,
+      "debugMode": false
     }
   ]
 }
@@ -48,8 +50,32 @@ The password of your account.
 
 Optional:
 
+* `localControl` (boolean, default `true`):
+Prefer talking to devices directly over your local network, falling back to the cloud when a device has no reachable module, a local request fails, or a command isn't supported locally. See [Local control](#local-control).
+
+* `localScanSubnet` (boolean, default `true`):
+In addition to SSDP, scan the local subnet (TCP port 57223) to locate modules. Disable if SSDP alone already finds your devices.
+
+* `localDevices` (array):
+Optional manual overrides mapping a device `gwid` (its MAC, 12 hex characters) to a LAN `host` (IP address). Use when SSDP is blocked (e.g. the module is on a different VLAN) or DHCP keeps moving a device.
+
+* `excludedDevices` (array):
+GWIDs of devices that should **not** be exposed to HomeKit. This is normally managed for you by the settings screen — see [Choosing which devices appear in HomeKit](#choosing-which-devices-appear-in-homekit).
+
 * `debugMode` (boolean):
 If `true`, the plugin will print debugging information to the Homebridge log.
+
+## Local control
+
+From v2.0.0, when a device's Panasonic Wi-Fi module (**CZ-T006 / CZ-T007**) is reachable on the same network, the plugin reads status and sends commands **directly over the LAN** using the TaiSEIA protocol, and only falls back to the Panasonic cloud when the local path can't be used. Local control is lower latency and isn't subject to the cloud's rate limit.
+
+* No extra setup is needed — devices are found automatically via SSDP and an optional subnet scan, and matched to your cloud devices by MAC address. LAN address changes (DHCP) are re-discovered automatically.
+* Devices are still **discovered** through the cloud, so your account credentials are always required.
+* To turn it off and use the cloud exclusively, set `localControl` to `false`.
+
+## Choosing which devices appear in HomeKit
+
+Open the plugin's settings in the Homebridge UI. Every device on your account is shown as a card with its type, model and current status. Supported devices (air conditioner, dehumidifier, air purifier) have an **In HomeKit** switch you can turn off to hide a device from HomeKit; unsupported devices are marked accordingly. Changes are saved immediately and take effect after you restart Homebridge. Newly added devices are included by default.
 
 ## Troubleshooting
 
