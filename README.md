@@ -1,8 +1,14 @@
-# Homebridge Panasonic Smart App Platform
+<p align="center">
+  <img src="branding/icon.png" alt="Homebridge Panasonic Smart App Platform icon" width="100">
+</p>
 
-[![verified-by-homebridge](https://badgen.net/badge/homebridge/verified/purple)](https://github.com/homebridge/plugins)
-[![GitHub version](https://img.shields.io/github/package-json/v/tasict/homebridge-panasonic-smart-app?label=GitHub)](https://github.com/tasict/homebridge-panasonic-smart-app)
-[![npm version](https://img.shields.io/npm/v/homebridge-panasonic-smart-app?color=%23cb3837&label=npm)](https://www.npmjs.com/package/homebridge-panasonic-smart-app)
+<h1 align="center">Homebridge Panasonic Smart App Platform</h1>
+
+<p align="center">
+  <a href="https://github.com/homebridge/plugins"><img src="https://badgen.net/badge/homebridge/verified/purple" alt="verified-by-homebridge"></a>
+  <a href="https://github.com/tasict/homebridge-panasonic-smart-app"><img src="https://img.shields.io/github/package-json/v/tasict/homebridge-panasonic-smart-app?label=GitHub" alt="GitHub version"></a>
+  <a href="https://www.npmjs.com/package/homebridge-panasonic-smart-app"><img src="https://img.shields.io/npm/v/homebridge-panasonic-smart-app?color=%23cb3837&label=npm" alt="npm version"></a>
+</p>
 
 `homebridge-panasonic-smart-app` is a dynamic platform plugin for [Homebridge](https://homebridge.io) that provides HomeKit support for devices registered in the Panasonic (Taiwan) Smart App, including air conditioners, dehumidifiers, and air purifiers.
 
