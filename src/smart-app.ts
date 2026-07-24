@@ -2,6 +2,7 @@ import PanasonicPlatformLogger from './logger';
 import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 import {
   LOGIN_TOKEN_REFRESH_INTERVAL,
+  STORED_TOKEN_MAX_REUSE_AGE,
 } from './settings';
 import {
   SmartAppDevice,
@@ -39,6 +40,7 @@ import {
 
 import { TaiSeiaClient, TaiSeiaCommandRejected, statusKey } from './taiseia';
 import { ssdpSearch, scanForOpenPort, localSubnetHosts } from './local-discovery';
+import { TokenStore } from './token-store';
 
 interface QueuedRequest {
   config: AxiosRequestConfig;
@@ -81,9 +83,14 @@ export default class SmartAppApi {
   private _localDiscovering = false;
   private _lastLocalDiscoveryAt = 0;
 
+  // Persists the session token so a restart can reuse it instead of logging in
+  // with the email/password again.
+  private readonly _tokenStore: TokenStore;
+
   constructor(
     private readonly config: PanasonicPlatformConfig,
     private readonly log: PanasonicPlatformLogger,
+    storagePath = '',
   ) {
     this._cp_token = '';
     this._refresh_token = '';
@@ -95,6 +102,8 @@ export default class SmartAppApi {
     this._localScanSubnet = config.localScanSubnet !== false;
     this._localDevicesOverride = Array.isArray(config.localDevices)
       ? config.localDevices : [];
+
+    this._tokenStore = new TokenStore(storagePath, log);
   }
 
   private delay(ms: number): Promise<void> {
@@ -234,6 +243,116 @@ export default class SmartAppApi {
   }
 
   /**
+   * Establishes an authenticated session for startup: reuse a saved token when
+   * one exists for the configured account and still works, otherwise log in
+   * with the email/password. Resolves once a usable session is ready and
+   * rejects only when a full login fails, so the platform's retry still applies.
+   */
+  async startSession(): Promise<void> {
+    const stored = this._tokenStore.load();
+
+    if (stored && stored.email === this.config.email) {
+      this._cp_token = stored.cpToken;
+      this._refresh_token = stored.refreshToken;
+
+      const age = Date.now() - stored.savedAt;
+
+      // A recently obtained token is still well within its server lifetime, so
+      // reuse it directly and skip the RefreshToken1 round-trip. An unexpected
+      // invalidation is still caught by the reactive re-login on the first 417.
+      if (stored.savedAt > 0 && age >= 0 && age < STORED_TOKEN_MAX_REUSE_AGE) {
+        this.armTokenRefresh();
+        this.log.info('Reusing the saved Smart App session '
+          + `(${Math.round(age / (60 * 60 * 1000))}h old) - no credential login needed.`);
+        return;
+      }
+
+      // Older (or undated) token: validate and refresh it before use, and fall
+      // back to a credential login if it is no longer accepted.
+      try {
+        await this.refreshStoredToken();
+        this.log.info(
+          'Refreshed the saved Smart App session - no credential login needed.');
+        return;
+      } catch {
+        this.log.info('The saved Smart App session is no longer valid - '
+          + 'logging in with the configured credentials.');
+        this._cp_token = '';
+        this._refresh_token = '';
+        this._tokenStore.clear();
+      }
+    }
+
+    await this.login();
+  }
+
+  /**
+   * Validates and refreshes a token loaded from disk via RefreshToken1. Unlike
+   * refresh_token(), it does not run the reactive re-login on failure: it just
+   * throws so startSession() can fall back to a clean email/password login.
+   */
+  private async refreshStoredToken(): Promise<void> {
+    if (!this._refresh_token) {
+      throw new PanasonicRefreshTokenNotFound();
+    }
+
+    const response = await this.request({
+      method: 'post',
+      url: BASE_URL + '/RefreshToken1',
+      headers: {
+        'Accept': 'application/json; charset=UTF-8',
+        'Content-Type': 'application/json',
+        'User-Agent': USER_AGENT,
+        'cptoken': this._cp_token,
+      },
+    }, true);
+
+    this._refresh_token = response.data['RefreshToken'];
+    this._cp_token = response.data['CPToken'];
+
+    if (!this._cp_token || !this._refresh_token) {
+      throw new Error('RefreshToken1 returned an empty token.');
+    }
+
+    this.persistToken();
+    this.armTokenRefresh();
+  }
+
+  /** Writes the current token to disk so a restart can reuse it. */
+  private persistToken(): void {
+    if (!this._cp_token || !this._refresh_token) {
+      return;
+    }
+    this._tokenStore.save({
+      email: this.config.email,
+      cpToken: this._cp_token,
+      refreshToken: this._refresh_token,
+      savedAt: Date.now(),
+    });
+  }
+
+  /**
+   * (Re)arms the periodic token refresh. Shared by login() and the restored
+   * session path so a token seeded from disk is still refreshed on schedule.
+   * The rejection must be caught inside the interval callback: an unhandled
+   * rejection there would crash the whole Homebridge process.
+   */
+  private armTokenRefresh(): void {
+    if (this._disposed) {
+      return;
+    }
+    if (this._loginRefreshInterval !== undefined) {
+      clearInterval(this._loginRefreshInterval);
+    }
+    this._loginRefreshInterval = setInterval(() => {
+      this.refresh_token().catch(() => {
+        this.log.error('Periodic token refresh failed. '
+          + 'Will re-login when the server reports an expired token.');
+      });
+    }, LOGIN_TOKEN_REFRESH_INTERVAL);
+  }
+
+  /**
    * Logs in the user with Smart App and
    * saves the retrieved token on the instance.
   */
@@ -277,6 +396,9 @@ export default class SmartAppApi {
         this._refresh_token = response.data['RefreshToken'];
         this._cp_token = response.data['CPToken'];
 
+        // Persist the fresh token so the next restart can reuse it.
+        this.persistToken();
+
         // A login resolving after dispose() (e.g. a 417-triggered re-login
         // racing Homebridge shutdown) must not re-arm the refresh interval:
         // nothing would ever clear it again.
@@ -284,15 +406,8 @@ export default class SmartAppApi {
           return;
         }
 
-        // Set an interval to refresh the login token periodically.
-        // The rejection must be caught here: an unhandled rejection from the
-        // interval callback would crash the whole Homebridge process.
-        this._loginRefreshInterval = setInterval(() => {
-          this.refresh_token().catch(() => {
-            this.log.error('Periodic token refresh failed. '
-              + 'Will re-login when the server reports an expired token.');
-          });
-        }, LOGIN_TOKEN_REFRESH_INTERVAL);
+        // Refresh the token periodically (also re-arms after a re-login).
+        this.armTokenRefresh();
       })
       .catch((error: AxiosError) => {
         if (error.response?.status === 429) {
@@ -332,7 +447,8 @@ export default class SmartAppApi {
         this._refresh_token = response.data['RefreshToken'];
         this._cp_token = response.data['CPToken'];
 
-
+        // Persist the refreshed token (with a new acquisition time).
+        this.persistToken();
       })
       .catch((error: AxiosError) => {
         this.log.debug('Smart App - refresh_token(): Error');

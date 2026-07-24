@@ -74,6 +74,7 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
     this.smartApp = new SmartAppApi(
       this.platformConfig,
       this.log,
+      this.api.user.storagePath(),
     );
 
     /**
@@ -115,15 +116,16 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
       return;
     }
 
-    this.log.info('Attempting to log into Smart App.');
-    this.smartApp.login()
+    this.log.info('Preparing Smart App session.');
+    this.smartApp.startSession()
       .then(() => {
-        this.log.info('Successfully logged in.');
+        this.log.info('Smart App session ready.');
         this.noOfFailedLoginAttempts = 0;
         this.discoverDevices();
       })
       .catch(() => {
-        this.log.error('Login failed. Skipping device discovery.');
+        this.log.error('Could not establish a Smart App session. '
+          + 'Skipping device discovery.');
         this.noOfFailedLoginAttempts++;
 
         if (this.noOfFailedLoginAttempts < MAX_NO_OF_FAILED_LOGIN_ATTEMPTS) {

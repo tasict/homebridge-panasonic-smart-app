@@ -14,6 +14,12 @@ export const MAX_NO_OF_FAILED_LOGIN_ATTEMPTS = 5;
 // 604,800 sec = 7 days
 export const LOGIN_TOKEN_REFRESH_INTERVAL = 604800 * 1000;
 
+// On startup a saved token younger than this is reused as-is (its acquisition
+// time is stored alongside it); an older one is validated/refreshed via
+// RefreshToken1 first. Keep this below the token's server lifetime, which is at
+// least LOGIN_TOKEN_REFRESH_INTERVAL. 259,200 sec = 3 days.
+export const STORED_TOKEN_MAX_REUSE_AGE = 259200 * 1000;
+
 // 60 sec = 1 min
 export const DEVICE_STATUS_REFRESH_INTERVAL = 60 * 1000;
 
