@@ -14,6 +14,10 @@ export interface PanasonicPlatformConfig extends PlatformConfig {
   // Optional manual GWID (MAC) -> LAN IP overrides for when SSDP is blocked
   // (e.g. the module lives on a different VLAN) or DHCP keeps moving a device.
   localDevices?: LocalDeviceOverride[];
+  // GWIDs the user chose (via the custom UI) not to expose to HomeKit.
+  // Anything not listed here is included by default, so existing setups keep
+  // all their devices.
+  excludedDevices?: string[];
 }
 
 export interface LocalDeviceOverride {
@@ -25,11 +29,8 @@ export interface LocalDeviceOverride {
 
 // A local module located on the LAN, matched to a cloud device by GWID/MAC.
 export interface LocalDeviceEndpoint {
-  host: string;
   mac: string;
-  friendlyName: string;
   modelName: string;
-  modelNumber: string;
   firmware: string;
 }
 
@@ -37,8 +38,6 @@ export interface LocalDeviceEndpoint {
 export interface LocalDeviceMetadata {
   // device.xml <modelName> - the Wi-Fi module model (e.g. CZ-T006).
   moduleModel: string;
-  // device.xml <modelNumber>.
-  modelNumber: string;
   // Firmware version parsed from <modelDescription> (SW_VER).
   firmware: string;
 }

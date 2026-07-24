@@ -1,0 +1,265 @@
+<style>
+  .pn-wrap { margin-bottom: 1rem; }
+  .pn-header h4 { margin-bottom: .25rem; }
+  .pn-toolbar { display: flex; align-items: center; gap: .75rem; margin: .75rem 0; flex-wrap: wrap; }
+  .pn-msg { font-size: .85rem; }
+  .pn-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: .75rem;
+  }
+  .pn-card .card-body { padding: .85rem; }
+  .pn-card-top { display: flex; align-items: flex-start; gap: .6rem; }
+  .pn-icon { font-size: 1.2rem; opacity: .75; width: 1.4rem; text-align: center; line-height: 1.6; }
+  .pn-title { flex: 1 1 auto; min-width: 0; }
+  .pn-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pn-type { font-size: .78rem; }
+  .pn-meta { font-size: .72rem; margin-top: .5rem; word-break: break-all; opacity: .8; }
+  .pn-status { margin-top: .6rem; display: flex; flex-wrap: wrap; gap: .35rem; min-height: 1.4rem; }
+  .pn-chip {
+    font-size: .72rem; padding: .1rem .5rem; border-radius: .7rem;
+    border: 1px solid rgba(128, 128, 128, .35); white-space: nowrap;
+  }
+  .pn-chip-on { border-color: rgba(40, 167, 69, .55); color: #28a745; }
+  .pn-chip-off { opacity: .65; }
+  .pn-chip-warn { border-color: rgba(255, 193, 7, .65); color: #d39e00; }
+  .pn-unsupported { opacity: .68; }
+  .pn-switch { white-space: nowrap; }
+  .pn-badge { align-self: flex-start; }
+  .pn-empty { font-size: .9rem; opacity: .8; padding: .5rem 0; }
+</style>
+
+<div class="pn-wrap">
+  <div class="pn-header">
+    <h4>Panasonic Smart App Devices</h4>
+    <p class="text-muted pn-msg">
+      Devices on your account are listed below. Supported devices can be toggled in or out of
+      HomeKit; changes take effect after you restart Homebridge.
+    </p>
+  </div>
+
+  <div class="pn-toolbar">
+    <button id="pn-refresh" type="button" class="btn btn-primary btn-sm">Load devices</button>
+    <span id="pn-msg" class="text-muted pn-msg"></span>
+  </div>
+
+  <div id="pn-grid" class="pn-grid"></div>
+  <div id="pn-empty" class="pn-empty text-muted" style="display:none;"></div>
+</div>
+
+<script>
+  (async () => {
+    const grid = document.getElementById('pn-grid');
+    const emptyEl = document.getElementById('pn-empty');
+    const refreshBtn = document.getElementById('pn-refresh');
+    const msgEl = document.getElementById('pn-msg');
+
+    const MODES = ['Cool', 'Dry', 'Fan', 'Auto', 'Heat'];
+
+    let config = {};
+    try {
+      const configs = await homebridge.getPluginConfig();
+      config = configs[0] || {};
+    } catch (e) {
+      config = {};
+    }
+
+    // Show the standard credentials/advanced form under the device cards.
+    homebridge.showSchemaForm();
+
+    const escapeHtml = (value) => String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    const excludedSet = () => new Set(
+      (config.excludedDevices || []).map((gwid) => String(gwid).toUpperCase()));
+
+    async function persistExclusions(set) {
+      config.excludedDevices = Array.from(set);
+      if (!config.platform) {
+        config.platform = 'Panasonic Smart App Platform';
+      }
+      await homebridge.updatePluginConfig([config]);
+      await homebridge.savePluginConfig();
+    }
+
+    function iconFor(type) {
+      switch (String(type)) {
+        case '1': return 'fas fa-snowflake';
+        case '4': return 'fas fa-tint';
+        case '8': return 'fas fa-wind';
+        default: return 'fas fa-plug';
+      }
+    }
+
+    function chip(text, kind) {
+      const cls = kind ? 'pn-chip pn-chip-' + kind : 'pn-chip';
+      return '<span class="' + cls + '">' + escapeHtml(text) + '</span>';
+    }
+
+    function statusChips(device, status) {
+      if (status === null || status === undefined) {
+        return '<span class="text-muted pn-msg">Status unavailable</span>';
+      }
+      const type = String(device.deviceType);
+      const chips = [];
+      const power = status['0x00'];
+      if (power !== undefined) {
+        chips.push(chip(power === '1' ? 'On' : 'Off', power === '1' ? 'on' : 'off'));
+      }
+      if (type === '1') {
+        if (status['0x01'] !== undefined) {
+          chips.push(chip(MODES[+status['0x01']] || ('Mode ' + status['0x01'])));
+        }
+        if (status['0x04'] !== undefined) {
+          chips.push(chip('Now ' + status['0x04'] + '°C'));
+        }
+        if (status['0x03'] !== undefined) {
+          chips.push(chip('Set ' + status['0x03'] + '°C'));
+        }
+      } else if (type === '4') {
+        if (status['0x07'] !== undefined) {
+          chips.push(chip('Humidity ' + status['0x07'] + '%'));
+        }
+        if (status['0x04'] !== undefined) {
+          chips.push(chip('Target ' + (Number(status['0x04']) * 5 + 40) + '%'));
+        }
+        if (status['0x0A'] === '1') {
+          chips.push(chip('Tank full', 'warn'));
+        }
+      } else if (type === '8') {
+        if (status['0x53'] !== undefined) {
+          chips.push(chip('PM2.5 ' + status['0x53'] + ' µg/m³'));
+        }
+      }
+      return chips.length ? chips.join('') : '<span class="text-muted pn-msg">No readings</span>';
+    }
+
+    function renderDevices(devices) {
+      grid.innerHTML = '';
+      emptyEl.style.display = 'none';
+
+      if (!devices.length) {
+        emptyEl.textContent = 'No devices found on this account.';
+        emptyEl.style.display = 'block';
+        return;
+      }
+
+      const excluded = excludedSet();
+
+      for (const device of devices) {
+        const key = String(device.gwid).toUpperCase();
+        const switchId = 'pn-sw-' + key;
+        const included = !excluded.has(key);
+
+        const control = device.supported
+          ? '<div class="custom-control custom-switch pn-switch">'
+            + '<input type="checkbox" class="custom-control-input" id="' + switchId + '"'
+            + (included ? ' checked' : '') + '>'
+            + '<label class="custom-control-label" for="' + switchId + '">In HomeKit</label>'
+            + '</div>'
+          : '<span class="badge badge-secondary pn-badge">Not supported</span>';
+
+        const card = document.createElement('div');
+        card.className = 'pn-card card' + (device.supported ? '' : ' pn-unsupported');
+        card.innerHTML =
+          '<div class="card-body">'
+          + '<div class="pn-card-top">'
+          + '<div class="pn-icon"><i class="' + iconFor(device.deviceType) + '"></i></div>'
+          + '<div class="pn-title">'
+          + '<div class="pn-name">' + escapeHtml(device.name) + '</div>'
+          + '<div class="pn-type text-muted">' + escapeHtml(device.typeName) + '</div>'
+          + '</div>'
+          + control
+          + '</div>'
+          + '<div class="pn-meta">' + escapeHtml(device.model || '')
+          + ' &middot; ' + escapeHtml(device.gwid) + '</div>'
+          + '<div class="pn-status" id="pn-status-' + key + '">'
+          + '<span class="text-muted pn-msg">Loading status…</span></div>'
+          + '</div>';
+        grid.appendChild(card);
+
+        if (device.supported) {
+          const input = card.querySelector('#' + switchId);
+          input.addEventListener('change', async () => {
+            const set = excludedSet();
+            if (input.checked) {
+              set.delete(key);
+            } else {
+              set.add(key);
+            }
+            try {
+              await persistExclusions(set);
+              homebridge.toast.success(
+                escapeHtml(device.name) + (input.checked ? ' will be included.' : ' will be excluded.'),
+                'Saved');
+            } catch (e) {
+              input.checked = !input.checked;
+              homebridge.toast.error('Could not save the change.', 'Panasonic Smart App');
+            }
+          });
+        }
+      }
+    }
+
+    function applyStatuses(statuses) {
+      for (const gwid of Object.keys(statuses || {})) {
+        const el = document.getElementById('pn-status-' + String(gwid).toUpperCase());
+        if (el) {
+          el.innerHTML = statusChips(
+            { deviceType: (lastDevices.find((d) => d.gwid === gwid) || {}).deviceType },
+            statuses[gwid]);
+        }
+      }
+    }
+
+    let lastDevices = [];
+
+    async function loadDevices() {
+      refreshBtn.disabled = true;
+      msgEl.textContent = 'Loading devices…';
+      homebridge.showSpinner();
+      try {
+        // Re-read so credentials just typed into the form below are used.
+        try {
+          const configs = await homebridge.getPluginConfig();
+          if (configs[0]) {
+            config = configs[0];
+          }
+        } catch (e) { /* keep the current config */ }
+
+        const devices = await homebridge.request('/devices', {
+          email: config.email,
+          password: config.password,
+        });
+        lastDevices = devices;
+        renderDevices(devices);
+        msgEl.textContent = devices.length
+          ? (devices.length + ' device(s) found.') : '';
+
+        // Fill in live status in the background (paced server-side).
+        homebridge.request('/statuses')
+          .then((statuses) => applyStatuses(statuses))
+          .catch(() => { /* status is best-effort */ });
+      } catch (e) {
+        grid.innerHTML = '';
+        msgEl.textContent = '';
+        homebridge.toast.error(
+          (e && e.message) || 'Failed to load devices.', 'Panasonic Smart App');
+      } finally {
+        homebridge.hideSpinner();
+        refreshBtn.disabled = false;
+      }
+    }
+
+    refreshBtn.addEventListener('click', loadDevices);
+
+    // Auto-load when credentials (or a saved token) are likely available.
+    if (config.email && config.password) {
+      loadDevices();
+    } else {
+      emptyEl.textContent = 'Enter your email and password below, save, then click "Load devices".';
+      emptyEl.style.display = 'block';
+    }
+  })();
+</script>

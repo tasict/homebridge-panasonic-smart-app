@@ -204,6 +204,9 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
       // switch to local once discovery finishes.
       this.smartApp.discoverLocalDevices().catch(error => this.log.debug(error));
 
+      // Devices the user excluded via the custom UI (by GWID).
+      const excludedGwids = this.getExcludedGwids();
+
       // Loop over the discovered (indoor) devices and register each
       // one if it has not been registered before.
       for (const device of smartAppDevices) {
@@ -211,6 +214,14 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
         // Check if the device is supported
         if (!this.isSupportedDevice(device.DeviceType)) {
           this.log.info(`Skipping unsupport device '${device.NickName}' with ${device.DeviceType}`);
+          continue;
+        }
+
+        // Skip devices the user chose not to expose to HomeKit. Any cached
+        // accessory for them is removed by the exclusion cleanup below.
+        if (excludedGwids.has(device.GWID.toUpperCase())) {
+          this.log.info(`Skipping '${device.NickName}' (${device.GWID}) `
+            + '- excluded from HomeKit in the plugin settings.');
           continue;
         }
 
@@ -256,6 +267,20 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
         }
       }
 
+      // Remove accessories the user has excluded. Unlike the account-absence
+      // cleanup below, this is a deliberate user choice (the device is still on
+      // the account), so it needs no confirmation fetch and runs even when the
+      // device list came back empty.
+      const excludedAccessories = this.accessories.filter(
+        accessory => accessory.context.device
+          && excludedGwids.has(accessory.context.device.GWID.toUpperCase()));
+
+      for (const accessory of excludedAccessories) {
+        this.log.info(`Removing '${accessory.displayName}' `
+          + `(${accessory.context.device?.GWID}) - excluded from HomeKit in the settings.`);
+        this.removeAccessory(accessory);
+      }
+
       // At this point, we set up all devices from Smart App, but we did not unregister
       // cached devices that do not exist on the Smart App account anymore.
       // Guard: if the server returned an empty device list (e.g. a temporary
@@ -299,18 +324,34 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
         this.log.info(`Removing accessory '${cachedAccessory.displayName}' (${guid}) `
           + 'because it does not exist on the Smart App account (anymore?).');
 
-        this.handlers.get(cachedAccessory.UUID)?.dispose();
-        this.handlers.delete(cachedAccessory.UUID);
-
-        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [cachedAccessory]);
-
-        const index = this.accessories.indexOf(cachedAccessory);
-        if (index !== -1) {
-          this.accessories.splice(index, 1);
-        }
+        this.removeAccessory(cachedAccessory);
       }
     } catch (error) {
       this.log.error(error);
+    }
+  }
+
+  /** GWIDs (upper-cased) the user excluded from HomeKit via the custom UI. */
+  private getExcludedGwids(): Set<string> {
+    const excluded = Array.isArray(this.platformConfig.excludedDevices)
+      ? this.platformConfig.excludedDevices : [];
+    return new Set(
+      excluded
+        .filter((gwid): gwid is string => typeof gwid === 'string')
+        .map(gwid => gwid.toUpperCase()),
+    );
+  }
+
+  /** Stops the handler, unregisters the accessory, and drops it from the cache. */
+  private removeAccessory(accessory: PlatformAccessory<PanasonicAccessoryContext>) {
+    this.handlers.get(accessory.UUID)?.dispose();
+    this.handlers.delete(accessory.UUID);
+
+    this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+
+    const index = this.accessories.indexOf(accessory);
+    if (index !== -1) {
+      this.accessories.splice(index, 1);
     }
   }
 

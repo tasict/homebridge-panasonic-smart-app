@@ -2,6 +2,7 @@
   "pluginAlias": "Panasonic Smart App Platform",
   "pluginType": "platform",
   "singular": true,
+  "customUi": true,
   "schema": {
     "type": "object",
     "required": ["name", "email", "password"],
@@ -62,6 +63,14 @@
               "format": "ipv4"
             }
           }
+        }
+      },
+      "excludedDevices": {
+        "title": "Devices Excluded from HomeKit",
+        "description": "GWIDs of supported devices the user chose not to expose to HomeKit. Managed by the plugin's custom UI; devices not listed here are included by default.",
+        "type": "array",
+        "items": {
+          "type": "string"
         }
       }
     }

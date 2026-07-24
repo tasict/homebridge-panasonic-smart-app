@@ -101,7 +101,6 @@ export class TaiSeiaClient {
     // The device's SA type id, which equals the cloud `DeviceType`
     // (1 = AC, 4 = dehumidifier, 8 = air cleaner). Used for reads/writes.
     private readonly typeId: number,
-    public readonly port: number = LOCAL_PORT,
   ) {}
 
   /**
@@ -118,7 +117,7 @@ export class TaiSeiaClient {
     return new Promise((resolve, reject) => {
       const req = http.request({
         host: this.host,
-        port: this.port,
+        port: LOCAL_PORT,
         path,
         method,
         headers,
@@ -203,11 +202,9 @@ export class TaiSeiaClient {
     return parseAllStates(resp);
   }
 
-  /** Writes a 16-bit value to a service and returns the acknowledged value. */
-  async write(service: number, value: number): Promise<number> {
-    const resp = await this.setSaanet(
-      makePdu(this.typeId, service, value & 0xffff, true));
-    return (resp[3] << 8) | resp[4];
+  /** Writes a 16-bit value to a service. Throws if the module refuses it. */
+  async write(service: number, value: number): Promise<void> {
+    await this.setSaanet(makePdu(this.typeId, service, value & 0xffff, true));
   }
 
   /**
@@ -221,11 +218,8 @@ export class TaiSeiaClient {
     const firmware = xmlTag(xml, 'modelDescription').match(/SW_VER\s+([0-9.]+)/i);
 
     const endpoint: LocalDeviceEndpoint = {
-      host: this.host,
       mac: macFromUdn(xmlTag(xml, 'UDN')),
-      friendlyName: xmlTag(xml, 'friendlyName'),
       modelName: xmlTag(xml, 'modelName'),
-      modelNumber: xmlTag(xml, 'modelNumber'),
       firmware: firmware ? firmware[1] : '',
     };
 

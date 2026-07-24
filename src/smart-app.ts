@@ -296,12 +296,11 @@ export default class SmartAppApi {
    * refresh_token(), it does not run the reactive re-login on failure: it just
    * throws so startSession() can fall back to a clean email/password login.
    */
-  private async refreshStoredToken(): Promise<void> {
-    if (!this._refresh_token) {
-      throw new PanasonicRefreshTokenNotFound();
-    }
-
-    const response = await this.request({
+  /** Issues the RefreshToken1 request. Shared by refresh_token() (periodic /
+   *  reactive) and refreshStoredToken() (startup), which differ only in how
+   *  they handle success and failure. */
+  private postRefreshToken(): Promise<AxiosResponse> {
+    return this.request({
       method: 'post',
       url: BASE_URL + '/RefreshToken1',
       headers: {
@@ -311,6 +310,14 @@ export default class SmartAppApi {
         'cptoken': this._cp_token,
       },
     }, true);
+  }
+
+  private async refreshStoredToken(): Promise<void> {
+    if (!this._refresh_token) {
+      throw new PanasonicRefreshTokenNotFound();
+    }
+
+    const response = await this.postRefreshToken();
 
     this._refresh_token = response.data['RefreshToken'];
     this._cp_token = response.data['CPToken'];
@@ -434,16 +441,7 @@ export default class SmartAppApi {
       throw new PanasonicRefreshTokenNotFound();
     }
 
-    return this.request({
-      method: 'post',
-      url: BASE_URL + '/RefreshToken1',
-      headers: {
-        'Accept': 'application/json; charset=UTF-8',
-        'Content-Type': 'application/json',
-        'User-Agent': USER_AGENT,
-        'cptoken': this._cp_token,
-      },
-    }, true)
+    return this.postRefreshToken()
       .then((response) => {
 
         this.log.debug('Smart App - refresh_token(): Success');
@@ -551,19 +549,17 @@ export default class SmartAppApi {
         }
       }
 
-      // 2) SSDP, then 3) optional subnet scan, collecting candidate hosts.
-      const candidateHosts = new Set<string>();
-      (await ssdpSearch(this.log, LOCAL_SSDP_TIMEOUT))
-        .forEach(host => candidateHosts.add(host));
-
-      if (this._localScanSubnet) {
-        const subnet = localSubnetHosts(this.log);
-        if (subnet.length > 0) {
-          (await scanForOpenPort(
-            subnet, LOCAL_PORT, LOCAL_PORT_SCAN_TIMEOUT, LOCAL_PORT_SCAN_CONCURRENCY))
-            .forEach(host => candidateHosts.add(host));
-        }
-      }
+      // 2) SSDP and 3) the optional subnet scan are independent - run them
+      // concurrently and merge their candidate hosts.
+      const subnet = this._localScanSubnet ? localSubnetHosts(this.log) : [];
+      const [ssdpHosts, scanHosts] = await Promise.all([
+        ssdpSearch(this.log, LOCAL_SSDP_TIMEOUT),
+        subnet.length > 0
+          ? scanForOpenPort(
+            subnet, LOCAL_PORT, LOCAL_PORT_SCAN_TIMEOUT, LOCAL_PORT_SCAN_CONCURRENCY)
+          : Promise.resolve(new Set<string>()),
+      ]);
+      const candidateHosts = new Set<string>([...ssdpHosts, ...scanHosts]);
 
       const overrideHosts = new Set(
         Array.from(clients.values(), client => client.host));
@@ -580,7 +576,6 @@ export default class SmartAppApi {
           if (device) {
             meta.set(endpoint.mac, {
               moduleModel: endpoint.modelName,
-              modelNumber: endpoint.modelNumber,
               firmware: endpoint.firmware,
             });
             if (!clients.has(endpoint.mac)) {
@@ -660,8 +655,10 @@ export default class SmartAppApi {
     }
 
     this._devicesInfo[device.GWID] = info;
-    this.log.debug(`Smart App - fetchDeviceInfoLocal() for '${device.NickName}' `
-      + `via ${client.host}: ${JSON.stringify(info)}`);
+    if (this.log.debugMode) {
+      this.log.debug(`Smart App - fetchDeviceInfoLocal() for '${device.NickName}' `
+        + `via ${client.host}: ${JSON.stringify(info)}`);
+    }
     return info;
   }
 
