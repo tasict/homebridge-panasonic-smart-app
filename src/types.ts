@@ -4,6 +4,31 @@ export interface PanasonicPlatformConfig extends PlatformConfig {
   email: string;
   password: string;
   debugMode: boolean;
+  // Prefer local (LAN) communication, falling back to the cloud when a device
+  // has no local module, a local request fails, or a command is unsupported.
+  // Defaults to enabled.
+  localControl?: boolean;
+  // Whether local discovery may TCP-scan the subnet (in addition to SSDP) to
+  // locate modules. Defaults to enabled.
+  localScanSubnet?: boolean;
+  // Optional manual GWID (MAC) -> LAN IP overrides for when SSDP is blocked
+  // (e.g. the module lives on a different VLAN) or DHCP keeps moving a device.
+  localDevices?: LocalDeviceOverride[];
+}
+
+export interface LocalDeviceOverride {
+  // Device GWID as shown by the cloud (equals the module MAC, 12 hex chars).
+  gwid: string;
+  // LAN IP address (or hostname) of the module.
+  host: string;
+}
+
+// A local module located on the LAN, matched to a cloud device by GWID/MAC.
+export interface LocalDeviceEndpoint {
+  host: string;
+  mac: string;
+  friendlyName: string;
+  modelName: string;
 }
 
 export interface PanasonicAccessoryContext {

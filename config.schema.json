@@ -30,6 +30,39 @@
         "description": "When enabled, debug messages will be written to the log.",
         "type": "boolean",
         "default": false
+      },
+      "localControl": {
+        "title": "Prefer Local (LAN) Control",
+        "description": "When enabled, devices reachable on your local network are read and controlled directly over the LAN, falling back to the Panasonic cloud only on failure or for unsupported commands. Requires a Panasonic CZ-T006/T007 Wi-Fi module.",
+        "type": "boolean",
+        "default": true
+      },
+      "localScanSubnet": {
+        "title": "Scan Subnet for Local Devices",
+        "description": "In addition to SSDP, TCP-scan the local subnet (port 57223) to locate modules. Disable if SSDP alone already finds your devices or to avoid the scan.",
+        "type": "boolean",
+        "default": true
+      },
+      "localDevices": {
+        "title": "Manual Local Device Mapping",
+        "description": "Optional overrides mapping a device GWID (its MAC, 12 hex characters) to a LAN IP address. Use when SSDP is blocked (e.g. a different VLAN) or DHCP keeps moving a device.",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "gwid": {
+              "title": "GWID / MAC",
+              "type": "string",
+              "placeholder": "B8B7F1212AAB"
+            },
+            "host": {
+              "title": "LAN IP Address",
+              "type": "string",
+              "placeholder": "10.0.1.20",
+              "format": "ipv4"
+            }
+          }
+        }
       }
     }
   },
@@ -60,6 +93,23 @@
       "title": "Advanced configuration",
       "expandable": true,
       "items": [
+        "localControl",
+        "localScanSubnet",
+        {
+          "key": "localDevices",
+          "type": "array",
+          "title": "Manual Local Device Mapping",
+          "items": [
+            {
+              "type": "flex",
+              "flex-flow": "row wrap",
+              "items": [
+                "localDevices[].gwid",
+                "localDevices[].host"
+              ]
+            }
+          ]
+        },
         "debugMode"
       ]
     }

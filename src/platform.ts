@@ -197,6 +197,11 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
     try {
       const smartAppDevices = await this.smartApp.fetchDevices();
 
+      // Locate LAN modules in the background so reads/commands can prefer the
+      // local path. It's non-blocking: accessories start on the cloud and
+      // switch to local once discovery finishes.
+      this.smartApp.discoverLocalDevices().catch(error => this.log.debug(error));
+
       // Loop over the discovered (indoor) devices and register each
       // one if it has not been registered before.
       for (const device of smartAppDevices) {
