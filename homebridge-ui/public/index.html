@@ -5,15 +5,16 @@
   .pn-msg { font-size: .85rem; }
   .pn-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
     gap: .75rem;
   }
   .pn-card .card-body { padding: .85rem; }
   .pn-card-top { display: flex; align-items: flex-start; gap: .6rem; }
-  .pn-icon { font-size: 1.2rem; opacity: .75; width: 1.4rem; text-align: center; line-height: 1.6; }
+  .pn-icon { opacity: .75; width: 1.4rem; line-height: 0; padding-top: .15rem; }
+  .pn-icon svg { width: 1.3rem; height: 1.3rem; }
   .pn-title { flex: 1 1 auto; min-width: 0; }
   .pn-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pn-type { font-size: .78rem; }
+  .pn-type { font-size: .78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pn-meta { font-size: .72rem; margin-top: .5rem; word-break: break-all; opacity: .8; }
   .pn-status { margin-top: .6rem; display: flex; flex-wrap: wrap; gap: .35rem; min-height: 1.4rem; }
   .pn-chip {
@@ -24,9 +25,22 @@
   .pn-chip-off { opacity: .65; }
   .pn-chip-warn { border-color: rgba(255, 193, 7, .65); color: #d39e00; }
   .pn-unsupported { opacity: .68; }
-  .pn-switch { white-space: nowrap; }
-  .pn-badge { align-self: flex-start; }
+  .pn-switch { flex: none; white-space: nowrap; font-size: .85rem; margin-bottom: 0; }
+  .pn-badge { flex: none; align-self: flex-start; }
   .pn-empty { font-size: .9rem; opacity: .8; padding: .5rem 0; }
+  /* Config UI X marks dark mode with a body class but keeps Bootstrap's light-theme muted colour, which is
+     unreadable on dark cards. */
+  body.dark-mode .pn-wrap .text-muted { color: rgba(255, 255, 255, .62) !important; }
+
+  /* Support: one quiet line below the devices, never in the way of a task.
+     The cup icon is inlined because the iframe loads nothing external. */
+  .pn-support { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 1.25rem; padding-top: .85rem; border-top: 1px solid rgba(128, 128, 128, .25); font-size: 12.5px; }
+  .pn-support-text { opacity: .7; margin: 0 4px 0 0; }
+  .pn-tip { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 2px 11px; border: 1px solid rgba(128, 128, 128, .35); border-radius: 8px; color: inherit; font-weight: 600; text-decoration: none; white-space: nowrap; }
+  .pn-tip:hover, .pn-tip:focus { color: inherit; text-decoration: none; border-color: rgba(128, 128, 128, .7); }
+  .pn-tip:focus-visible { outline: 2px solid #0d6efd; outline-offset: 2px; }
+  .pn-tip img { width: 18px; height: 18px; margin-left: -4px; border-radius: 4px; }
+  .pn-support-note { opacity: .55; font-size: 11.5px; }
 </style>
 
 <div class="pn-wrap">
@@ -45,6 +59,13 @@
 
   <div id="pn-grid" class="pn-grid"></div>
   <div id="pn-empty" class="pn-empty text-muted" style="display:none;"></div>
+
+  <div class="pn-support">
+    <p class="pn-support-text">Free and open source. If it keeps your home comfortable:</p>
+    <a class="pn-tip" href="https://tasict.bobaboba.me" target="_blank" rel="noopener noreferrer"><img src="data:image/png;base64,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" alt="" width="18" height="18">Buy me a boba</a>
+    <a class="pn-tip" href="https://paypal.me/tasict" target="_blank" rel="noopener noreferrer">Tip with PayPal</a>
+    <span class="pn-support-note">Boba is paid by card, no PayPal account needed.</span>
+  </div>
 </div>
 
 <script>
@@ -83,13 +104,19 @@
       await homebridge.savePluginConfig();
     }
 
+    // Inline SVG icons: the iframe gets Bootstrap but no icon font.
+    const svg = (body) => '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor"'
+      + ' stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
+    const ICONS = {
+      '1': svg('<rect x="2.5" y="5" width="19" height="7.5" rx="2.5"/><path d="M6 10h12M8 16q4 1.6 8 0M10 19.5q2 .9 4 0"/>'),
+      '4': svg('<rect x="6" y="3" width="12" height="18" rx="3"/><path d="M9 6.5h6M9 9h6"/>'
+        + '<path d="M12 12.5c1.4 1.7 2.1 2.9 2.1 3.8a2.1 2.1 0 0 1-4.2 0c0-.9.7-2.1 2.1-3.8z"/>'),
+      '8': svg('<rect x="7" y="2.5" width="10" height="19" rx="5"/><circle cx="12" cy="13" r="2.6"/><path d="M10 6.5h4"/>'),
+    };
+    const OTHER_ICON = svg('<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M5 10h14M8 6.5v1M8 13v2"/>');
+
     function iconFor(type) {
-      switch (String(type)) {
-        case '1': return 'fas fa-snowflake';
-        case '4': return 'fas fa-tint';
-        case '8': return 'fas fa-wind';
-        default: return 'fas fa-plug';
-      }
+      return ICONS[String(type)] || OTHER_ICON;
     }
 
     function chip(text, kind) {
@@ -152,20 +179,22 @@
         const switchId = 'pn-sw-' + key;
         const included = !excluded.has(key);
 
+        // Bootstrap 4 (older Homebridge UI) and 5 (current) name the switch and badge classes
+        // differently; both sets are carried so either renders.
         const control = device.supported
-          ? '<div class="custom-control custom-switch pn-switch">'
-            + '<input type="checkbox" class="custom-control-input" id="' + switchId + '"'
+          ? '<div class="form-check form-switch custom-control custom-switch pn-switch">'
+            + '<input type="checkbox" class="form-check-input custom-control-input" id="' + switchId + '"'
             + (included ? ' checked' : '') + '>'
-            + '<label class="custom-control-label" for="' + switchId + '">In HomeKit</label>'
+            + '<label class="form-check-label custom-control-label" for="' + switchId + '">In HomeKit</label>'
             + '</div>'
-          : '<span class="badge badge-secondary pn-badge">Not supported</span>';
+          : '<span class="badge bg-secondary badge-secondary pn-badge">Not supported</span>';
 
         const card = document.createElement('div');
         card.className = 'pn-card card' + (device.supported ? '' : ' pn-unsupported');
         card.innerHTML =
           '<div class="card-body">'
           + '<div class="pn-card-top">'
-          + '<div class="pn-icon"><i class="' + iconFor(device.deviceType) + '"></i></div>'
+          + '<div class="pn-icon">' + iconFor(device.deviceType) + '</div>'
           + '<div class="pn-title">'
           + '<div class="pn-name">' + escapeHtml(device.name) + '</div>'
           + '<div class="pn-type text-muted">' + escapeHtml(device.typeName) + '</div>'

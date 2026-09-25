@@ -1,0 +1,317 @@
+{
+  "en": {
+    "title": "Panasonic Smart App for Homebridge: your Panasonic appliances in Apple Home",
+    "desc": "A free Homebridge plugin that brings the air conditioners, dehumidifiers and air purifiers in your Panasonic Smart App (Taiwan) into Apple Home, controlled on your home network whenever it can be.",
+    "lang_menu": "Language",
+    "source": "Source code",
+    "h1": "Your Panasonic,\nin Apple Home.",
+    "lede": "A Homebridge plugin that puts the air conditioners, dehumidifiers and air purifiers from your Panasonic Smart App in the Home app. It talks to them directly on your home network when it can, and through Panasonic's cloud when it can't.",
+    "cta": "Install in Homebridge",
+    "github": "View on GitHub",
+    "fine": "Free and open source. For devices in the Panasonic Smart App (Taiwan).",
+    "device_legend": "Device",
+    "devices": { "ac": "Air conditioner", "dehu": "Dehumidifier", "air": "Air purifier" },
+    "names": { "ac": "Living Room", "dehu": "Bedroom", "air": "Study" },
+    "modes": {
+      "ac": { "off": "Off", "cool": "Cool", "heat": "Heat", "auto": "Auto" },
+      "dehu": { "off": "Off", "auto": "Auto", "cont": "Nonstop", "laundry": "Laundry" },
+      "air": { "off": "Off", "auto": "Auto", "low": "Low", "high": "High" }
+    },
+    "st": {
+      "ac": { "off": "Off", "cool": "Cooling to {t}", "heat": "Heating to {t}", "auto": "Auto, {t}" },
+      "dehu": { "off": "Off", "auto": "Drying to {t}", "cont": "Continuous drying", "laundry": "Drying laundry" },
+      "air": { "off": "Off", "on": "Air quality: {q}" }
+    },
+    "now": { "ac": "Room {t}", "dehu": "Humidity {t}", "air": "PM2.5" },
+    "aq": ["Excellent", "Good", "Fair", "Inferior", "Poor"],
+    "lower": "Lower",
+    "raise": "Raise",
+    "mode_legend": "Mode",
+    "demo_hint": "Try it. A preview of the controls each device gets in the Home app.",
+    "scene_alt": "The chosen appliance, moving air while it runs.",
+    "local_h2": "Local first, with the cloud as a backup",
+    "local_p": "Panasonic's CZ-T006 and CZ-T007 Wi-Fi modules also answer on your home network. The plugin finds them by itself and sends status reads and commands straight to them, which is quicker and never runs into the cloud's rate limit.",
+    "flow": [
+      ["Home app", "iPhone, iPad, Mac or HomePod"],
+      ["Homebridge", "Runs the plugin"],
+      ["Wi-Fi module", "CZ-T006 or CZ-T007"]
+    ],
+    "flow_links": ["HomeKit", "Your home network"],
+    "cloud_h3": "When a module can't be reached",
+    "cloud_p": "The plugin sends that request through the Panasonic Smart App cloud instead, so the device keeps working. Devices are always discovered through your account, and a module that moves to a new address is found again automatically.",
+    "feat_h2": "What you get in the Home app",
+    "feat_p": "Each device shows up as the kind of accessory it is, with the controls it actually has.",
+    "kinds": {
+      "ac": ["Power, and Cool, Heat or Auto", "Target temperature, 16 to 30 °C", "Room temperature"],
+      "dehu": ["Power and target humidity, 40 to 70%", "Current humidity and fan speed", "A switch for each of the unit's own modes, such as laundry drying", "Shows when the water tank is full", "Switches for nanoe and the button beep"],
+      "air": ["Power and fan speed", "Air quality with the PM2.5 reading", "A switch for nanoe"]
+    },
+    "feat_note": "All of them work with Siri, scenes and automations, like any other Home accessory.",
+    "pick_h2": "Choose what shows up in HomeKit",
+    "pick_p": "The plugin's settings screen lists every device on your Smart App account with its model and live status. Each supported device has an In HomeKit switch: turn it off and the device leaves the Home app after the next restart.",
+    "pick_p2": "Devices you add to your account later are included automatically. Refrigerators, washing machines and other appliances the plugin can't control yet are marked as not supported.",
+    "preview_title": "Panasonic Smart App Devices",
+    "preview_load": "Load devices",
+    "in_homekit": "In HomeKit",
+    "not_supported": "Not supported",
+    "preview": [
+      [
+        "ac",
+        "Living Room AC",
+        "Air Conditioner",
+        ["On", "Cool", "Now 28°C", "Set 26°C"],
+        true
+      ],
+      [
+        "dehu",
+        "Bedroom Dehumidifier",
+        "Dehumidifier",
+        ["On", "Humidity 62%", "Target 50%"],
+        true
+      ],
+      [
+        "other",
+        "Fridge",
+        "Refrigerator",
+        [],
+        false
+      ]
+    ],
+    "preview_caption": "The plugin settings in the Homebridge UI.",
+    "start_h2": "Set it up in a few minutes",
+    "steps": [
+      ["Install the plugin", "In the Homebridge UI, open Plugins, search for Panasonic Smart App and install it."],
+      ["Sign in", "Open the plugin settings, enter the email and password of your Panasonic Smart App account and save."],
+      ["Choose devices and restart", "Your devices appear with their live status. Switch off any you'd rather keep out of HomeKit, then restart Homebridge."]
+    ],
+    "start_note": "Works with Homebridge 1.6 or later, including Homebridge 2, on Node.js 18 or later.",
+    "docs": "Full configuration reference",
+    "know_h2": "Good to know",
+    "notes": [
+      ["Made for the Taiwan Smart App", "The plugin uses Panasonic's Smart App service in Taiwan. Set your devices up in that app first."],
+      ["A second account works best", "Using one account on your phone and in Homebridge at the same time can sign one of them out. Create an account for Homebridge and share your devices with it from your main account."],
+      ["Signs in once", "The session is saved in Homebridge's storage and reused, so a restart doesn't send your password again."],
+      ["Other network setups", "If a module sits on another VLAN, map the device to its IP address in the advanced settings. Prefer the cloud only? Turn local control off there."]
+    ],
+    "support_h2": "Keep it free",
+    "support_p": "The plugin has no ads and no paid version. If it keeps your home comfortable, a boba or a small tip helps me keep up with changes to Panasonic's service and new Homebridge releases.",
+    "boba": "Buy me a boba",
+    "paypal": "Tip with PayPal",
+    "support_card": "Boba is paid by card. No PayPal account needed.",
+    "made": "Made by tasict. Released under the Apache-2.0 license.",
+    "changelog": "Changelog",
+    "npm": "npm package",
+    "issues": "Report a problem",
+    "tm": "Panasonic is a trademark of Panasonic Holdings Corporation. Apple Home and HomeKit are trademarks of Apple Inc. This plugin is unofficial and not affiliated with or endorsed by either of them."
+  },
+  "zh-TW": {
+    "title": "Panasonic Smart App for Homebridge：把國際牌家電放進 Apple「家庭」",
+    "desc": "免費的 Homebridge 外掛，把 Panasonic Smart App（台灣）裡的冷氣、除濕機和空氣清淨機接進 Apple「家庭」App，能在家裡網路直接控制時就不經過雲端。",
+    "lang_menu": "語言",
+    "source": "原始碼",
+    "h1": "你的國際牌家電，\n放進「家庭」App。",
+    "lede": "這是一個 Homebridge 外掛，把 Panasonic Smart App 裡的冷氣、除濕機和空氣清淨機放進「家庭」App。能在家裡的網路上直接連到家電時就直接溝通，連不到時才透過 Panasonic 的雲端。",
+    "cta": "在 Homebridge 安裝",
+    "github": "在 GitHub 查看",
+    "fine": "免費、開放原始碼。適用於 Panasonic Smart App（台灣）裡的家電。",
+    "device_legend": "家電",
+    "devices": { "ac": "冷氣", "dehu": "除濕機", "air": "空氣清淨機" },
+    "names": { "ac": "客廳冷氣", "dehu": "臥室除濕機", "air": "書房清淨機" },
+    "modes": {
+      "ac": { "off": "關閉", "cool": "冷氣", "heat": "暖氣", "auto": "自動" },
+      "dehu": { "off": "關閉", "auto": "自動", "cont": "連續", "laundry": "乾衣" },
+      "air": { "off": "關閉", "auto": "自動", "low": "弱", "high": "強" }
+    },
+    "st": {
+      "ac": { "off": "關閉", "cool": "冷氣，設定 {t}", "heat": "暖氣，設定 {t}", "auto": "自動，設定 {t}" },
+      "dehu": { "off": "關閉", "auto": "除濕至 {t}", "cont": "連續除濕", "laundry": "衣物乾燥" },
+      "air": { "off": "關閉", "on": "空氣品質：{q}" }
+    },
+    "now": { "ac": "室溫 {t}", "dehu": "濕度 {t}", "air": "PM2.5" },
+    "aq": ["極佳", "良好", "普通", "不佳", "很差"],
+    "lower": "調低",
+    "raise": "調高",
+    "mode_legend": "模式",
+    "demo_hint": "試試看。這就是每台家電在「家庭」App 裡會有的控制項。",
+    "scene_alt": "選擇的家電，運轉時會送出氣流。",
+    "local_h2": "本機優先，雲端備援",
+    "local_p": "Panasonic 的 CZ-T006 和 CZ-T007 Wi-Fi 模組在家裡的網路上也能直接連線。外掛會自己找到它們，讀取狀態和下指令都直接送過去，反應更快，也不會碰到雲端的請求次數限制。",
+    "flow": [
+      ["「家庭」App", "iPhone、iPad、Mac 或 HomePod"],
+      ["Homebridge", "執行這個外掛"],
+      ["Wi-Fi 模組", "CZ-T006 或 CZ-T007"]
+    ],
+    "flow_links": ["HomeKit", "家裡的網路"],
+    "cloud_h3": "連不到模組的時候",
+    "cloud_p": "外掛會改走 Panasonic Smart App 雲端送出這次請求，家電照樣能操作。家電一律透過你的帳號找到；模組換了 IP 位址，外掛也會自動重新找到它。",
+    "feat_h2": "在「家庭」App 裡能做什麼",
+    "feat_p": "每台家電都會以對應的配件類型出現，只帶它真正有的控制項。",
+    "kinds": {
+      "ac": ["開關，以及冷氣、暖氣、自動模式", "設定溫度 16 至 30 °C", "室內溫度"],
+      "dehu": ["開關與目標濕度 40 至 70%", "目前濕度與風量", "依機型提供各模式的開關，例如衣物乾燥", "水箱滿水時會顯示出來", "nanoe 與操作提示音開關"],
+      "air": ["開關與風量", "空氣品質與 PM2.5 數值", "nanoe 開關"]
+    },
+    "feat_note": "每一台都能用 Siri、場景和自動化操作，就像其他「家庭」配件一樣。",
+    "pick_h2": "自己決定哪些家電出現在 HomeKit",
+    "pick_p": "外掛的設定頁會列出 Smart App 帳號裡的每台家電，附上型號和即時狀態。支援的家電都有「In HomeKit」開關：關掉後，下次重新啟動時這台家電就會從「家庭」App 移除。",
+    "pick_p2": "之後才加到帳號裡的家電會自動加入。冰箱、洗衣機等外掛還無法控制的家電，會標示為不支援。",
+    "preview_title": "Panasonic Smart App Devices",
+    "preview_load": "Load devices",
+    "in_homekit": "In HomeKit",
+    "not_supported": "Not supported",
+    "preview": [
+      [
+        "ac",
+        "客廳冷氣",
+        "Air Conditioner",
+        ["On", "Cool", "Now 28°C", "Set 26°C"],
+        true
+      ],
+      [
+        "dehu",
+        "臥室除濕機",
+        "Dehumidifier",
+        ["On", "Humidity 62%", "Target 50%"],
+        true
+      ],
+      [
+        "other",
+        "冰箱",
+        "Refrigerator",
+        [],
+        false
+      ]
+    ],
+    "preview_caption": "Homebridge UI 裡的外掛設定頁（介面為英文）。",
+    "start_h2": "幾分鐘就能設定好",
+    "steps": [
+      ["安裝外掛", "在 Homebridge UI 開啟外掛頁面，搜尋 Panasonic Smart App 並安裝。"],
+      ["登入", "開啟外掛設定，輸入 Panasonic Smart App 帳號的 Email 和密碼後儲存。"],
+      ["挑選家電並重新啟動", "家電會連同即時狀態一起列出。把不想放進 HomeKit 的關掉，再重新啟動 Homebridge。"]
+    ],
+    "start_note": "支援 Homebridge 1.6 以上（包含 Homebridge 2），需要 Node.js 18 以上。",
+    "docs": "完整設定說明（英文）",
+    "know_h2": "使用前須知",
+    "notes": [
+      ["適用台灣的 Smart App", "外掛使用的是台灣的 Panasonic Smart App 服務。請先在該 App 裡設定好你的家電。"],
+      ["建議另開一個帳號", "手機和 Homebridge 同時用同一個帳號，可能會把其中一邊登出。建議替 Homebridge 另開帳號，再從主帳號把家電分享給它。"],
+      ["只需登入一次", "登入狀態會存在 Homebridge 的儲存空間並重複使用，重新啟動時不會再送出密碼。"],
+      ["其他網路環境", "如果模組在不同的 VLAN，可以在進階設定裡把家電對應到它的 IP 位址。只想用雲端？也可以在那裡關閉本機控制。"]
+    ],
+    "support_h2": "讓它維持免費",
+    "support_p": "這個外掛沒有廣告，也沒有付費版。如果它讓你家更舒適，一杯珍奶或一點贊助，能幫我持續跟上 Panasonic 服務的變動和 Homebridge 的新版本。",
+    "boba": "請我喝珍奶",
+    "paypal": "用 PayPal 贊助",
+    "support_card": "珍奶贊助直接刷卡，不需要 PayPal 帳號。",
+    "made": "由 tasict 製作，以 Apache-2.0 授權釋出。",
+    "changelog": "更新紀錄",
+    "npm": "npm 套件",
+    "issues": "回報問題",
+    "tm": "Panasonic（國際牌）是 Panasonic Holdings Corporation 的商標；Apple Home（家庭）與 HomeKit 是 Apple Inc. 的商標。本外掛為非官方專案，與上述公司無關，也未獲其背書。"
+  },
+  "ja": {
+    "title": "Panasonic Smart App for Homebridge：パナソニックの家電を Apple「ホーム」に",
+    "desc": "Panasonic Smart App（台湾）に登録したエアコン、除湿機、空気清浄機を Apple「ホーム」App に追加する、無料の Homebridge プラグイン。できる限り家のネットワーク内で直接操作します。",
+    "lang_menu": "言語",
+    "source": "ソースコード",
+    "h1": "パナソニックの家電を\n「ホーム」App で。",
+    "lede": "Panasonic Smart App のエアコン、除湿機、空気清浄機を「ホーム」App に追加する Homebridge プラグインです。家のネットワークで直接つながるときは直接やり取りし、つながらないときだけパナソニックのクラウドを使います。",
+    "cta": "Homebridge にインストール",
+    "github": "GitHub で見る",
+    "fine": "無料のオープンソース。Panasonic Smart App（台湾）の家電に対応。",
+    "device_legend": "家電",
+    "devices": { "ac": "エアコン", "dehu": "除湿機", "air": "空気清浄機" },
+    "names": { "ac": "リビング", "dehu": "寝室", "air": "書斎" },
+    "modes": {
+      "ac": { "off": "オフ", "cool": "冷房", "heat": "暖房", "auto": "自動" },
+      "dehu": { "off": "オフ", "auto": "自動", "cont": "連続", "laundry": "衣類乾燥" },
+      "air": { "off": "オフ", "auto": "自動", "low": "弱", "high": "強" }
+    },
+    "st": {
+      "ac": { "off": "オフ", "cool": "冷房 {t} に設定", "heat": "暖房 {t} に設定", "auto": "自動 {t} に設定" },
+      "dehu": { "off": "オフ", "auto": "湿度 {t} まで除湿", "cont": "連続除湿", "laundry": "衣類乾燥" },
+      "air": { "off": "オフ", "on": "空気質：{q}" }
+    },
+    "now": { "ac": "室温 {t}", "dehu": "湿度 {t}", "air": "PM2.5" },
+    "aq": ["非常に良い", "良い", "普通", "悪い", "非常に悪い"],
+    "lower": "下げる",
+    "raise": "上げる",
+    "mode_legend": "モード",
+    "demo_hint": "操作してみてください。各家電に「ホーム」App で付くコントロールのイメージです。",
+    "scene_alt": "選んだ家電。運転中は風を送ります。",
+    "local_h2": "ローカル優先、クラウドはバックアップ",
+    "local_p": "パナソニックの無線 LAN アダプター CZ-T006 と CZ-T007 は、家のネットワークからも直接つながります。プラグインが自動で見つけ、状態の取得も操作も直接送るので、反応が速く、クラウドのリクエスト制限にもかかりません。",
+    "flow": [
+      ["「ホーム」App", "iPhone、iPad、Mac、HomePod"],
+      ["Homebridge", "プラグインを実行"],
+      ["無線 LAN アダプター", "CZ-T006 または CZ-T007"]
+    ],
+    "flow_links": ["HomeKit", "家のネットワーク"],
+    "cloud_h3": "アダプターにつながらないとき",
+    "cloud_p": "そのリクエストは Panasonic Smart App のクラウド経由で送られるので、家電はそのまま使えます。家電は常にアカウントから見つけ、アダプターの IP アドレスが変わっても自動で見つけ直します。",
+    "feat_h2": "「ホーム」App でできること",
+    "feat_p": "各家電はその種類のアクセサリとして表示され、実際に使える操作だけが並びます。",
+    "kinds": {
+      "ac": ["電源と、冷房・暖房・自動", "設定温度 16〜30 °C", "室温"],
+      "dehu": ["電源と目標湿度 40〜70%", "現在の湿度と風量", "衣類乾燥など、その機種のモードごとのスイッチ", "タンクが満水になると表示", "ナノイーと操作音のスイッチ"],
+      "air": ["電源と風量", "PM2.5 の値と空気質", "ナノイーのスイッチ"]
+    },
+    "feat_note": "どれもほかの「ホーム」アクセサリと同じように、Siri、シーン、オートメーションで使えます。",
+    "pick_h2": "HomeKit に出す家電を選べます",
+    "pick_p": "プラグインの設定画面には、Smart App アカウントのすべての家電が型番と現在の状態つきで並びます。対応する家電には「In HomeKit」スイッチがあり、オフにすると次の再起動で「ホーム」App から外れます。",
+    "pick_p2": "あとからアカウントに追加した家電は自動で含まれます。冷蔵庫や洗濯機など、まだ操作できない家電は非対応と表示されます。",
+    "preview_title": "Panasonic Smart App Devices",
+    "preview_load": "Load devices",
+    "in_homekit": "In HomeKit",
+    "not_supported": "Not supported",
+    "preview": [
+      [
+        "ac",
+        "リビングのエアコン",
+        "Air Conditioner",
+        ["On", "Cool", "Now 28°C", "Set 26°C"],
+        true
+      ],
+      [
+        "dehu",
+        "寝室の除湿機",
+        "Dehumidifier",
+        ["On", "Humidity 62%", "Target 50%"],
+        true
+      ],
+      [
+        "other",
+        "冷蔵庫",
+        "Refrigerator",
+        [],
+        false
+      ]
+    ],
+    "preview_caption": "Homebridge UI のプラグイン設定画面（表示は英語）。",
+    "start_h2": "数分でセットアップ",
+    "steps": [
+      ["プラグインをインストール", "Homebridge UI のプラグイン画面で Panasonic Smart App を検索してインストールします。"],
+      ["サインイン", "プラグイン設定を開き、Panasonic Smart App アカウントのメールアドレスとパスワードを入力して保存します。"],
+      ["家電を選んで再起動", "家電が現在の状態つきで並びます。HomeKit に出したくないものをオフにして、Homebridge を再起動します。"]
+    ],
+    "start_note": "Homebridge 1.6 以降（Homebridge 2 を含む）、Node.js 18 以降で動作します。",
+    "docs": "設定項目の詳しい説明（英語）",
+    "know_h2": "知っておきたいこと",
+    "notes": [
+      ["台湾の Smart App 向け", "プラグインは台湾の Panasonic Smart App サービスを使います。先にそのアプリで家電を設定してください。"],
+      ["アカウントは分けるのがおすすめ", "スマートフォンと Homebridge で同じアカウントを同時に使うと、片方がサインアウトされることがあります。Homebridge 用のアカウントを作り、メインのアカウントから家電を共有してください。"],
+      ["サインインは一度だけ", "セッションは Homebridge の保存領域に保存して再利用するので、再起動のたびにパスワードを送ることはありません。"],
+      ["ほかのネットワーク構成", "アダプターが別の VLAN にある場合は、詳細設定で家電を IP アドレスに対応づけられます。クラウドだけで使いたいときも、そこでローカル操作をオフにできます。"]
+    ],
+    "support_h2": "無料のままで続けるために",
+    "support_p": "このプラグインには広告も有料版もありません。快適に使えていたら、タピオカ 1 杯や少しのご支援が、パナソニックのサービスの変更や Homebridge の新バージョンへの対応を続ける力になります。",
+    "boba": "タピオカをおごる",
+    "paypal": "PayPal で支援",
+    "support_card": "タピオカはクレジットカードで支払えます。PayPal アカウントは不要です。",
+    "made": "tasict 作。Apache-2.0 ライセンスで公開しています。",
+    "changelog": "変更履歴",
+    "npm": "npm パッケージ",
+    "issues": "問題を報告",
+    "tm": "Panasonic（パナソニック）は Panasonic Holdings Corporation の商標です。Apple Home（ホーム）と HomeKit は Apple Inc. の商標です。本プラグインは非公式で、これらの企業とは関係がなく、承認も受けていません。"
+  }
+}

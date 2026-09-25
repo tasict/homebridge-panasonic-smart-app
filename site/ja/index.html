@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panasonic Smart App for Homebridge：パナソニックの家電を Apple「ホーム」に</title>
+<meta name="description" content="Panasonic Smart App（台湾）に登録したエアコン、除湿機、空気清浄機を Apple「ホーム」App に追加する、無料の Homebridge プラグイン。できる限り家のネットワーク内で直接操作します。">
+<link rel="canonical" href="https://tasict.github.io/homebridge-panasonic-smart-app/ja/">
+<link rel="alternate" hreflang="en" href="https://tasict.github.io/homebridge-panasonic-smart-app/">
+<link rel="alternate" hreflang="zh-TW" href="https://tasict.github.io/homebridge-panasonic-smart-app/zh-TW/">
+<link rel="alternate" hreflang="ja" href="https://tasict.github.io/homebridge-panasonic-smart-app/ja/">
+<link rel="alternate" hreflang="x-default" href="https://tasict.github.io/homebridge-panasonic-smart-app/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Panasonic Smart App for Homebridge：パナソニックの家電を Apple「ホーム」に">
+<meta property="og:description" content="Panasonic Smart App（台湾）に登録したエアコン、除湿機、空気清浄機を Apple「ホーム」App に追加する、無料の Homebridge プラグイン。できる限り家のネットワーク内で直接操作します。">
+<meta property="og:url" content="https://tasict.github.io/homebridge-panasonic-smart-app/ja/">
+<meta property="og:image" content="https://tasict.github.io/homebridge-panasonic-smart-app/assets/og.png">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#f3f6fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0c1522" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../assets/icon.png">
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<header class="wrap masthead">
+  <a class="wordmark" href="./"><img src="../assets/icon.svg" alt="" width="30" height="30">Panasonic Smart App</a>
+  <a href="https://github.com/tasict/homebridge-panasonic-smart-app">ソースコード</a>
+  <a class="tip head-tip" href="https://tasict.bobaboba.me" aria-label="タピオカをおごる"><img src="../assets/boba.png" alt="" width="24" height="24"><span>タピオカをおごる</span></a>
+  <details class="lang">
+    <summary aria-label="言語"><svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="7.5"/><path d="M2.5 10h15M10 2.5c2.2 2.3 3.2 4.8 3.2 7.5s-1 5.2-3.2 7.5c-2.2-2.3-3.2-4.8-3.2-7.5s1-5.2 3.2-7.5z"/></svg><span>日本語</span></summary>
+    <ul><li><a href="../" hreflang="en" lang="en">English</a></li><li><a href="../zh-TW/" hreflang="zh-TW" lang="zh-Hant-TW">繁體中文</a></li><li><a href="../ja/" hreflang="ja" lang="ja" aria-current="page">日本語</a></li></ul>
+  </details>
+</header>
+
+<main>
+<div class="wrap">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-copy">
+      <h1 id="hero-title">パナソニックの家電を<br>「ホーム」App で。</h1>
+      <p class="lede">Panasonic Smart App のエアコン、除湿機、空気清浄機を「ホーム」App に追加する Homebridge プラグインです。家のネットワークで直接つながるときは直接やり取りし、つながらないときだけパナソニックのクラウドを使います。</p>
+      <div class="actions">
+        <a class="btn" href="#start">Homebridge にインストール</a>
+        <a href="https://github.com/tasict/homebridge-panasonic-smart-app">GitHub で見る</a>
+      </div>
+      <p class="fine">無料のオープンソース。Panasonic Smart App（台湾）の家電に対応。</p>
+    </div>
+    <div class="room" data-demo data-device="ac" data-mode="cool" data-t='{&quot;st&quot;:{&quot;ac&quot;:{&quot;off&quot;:&quot;オフ&quot;,&quot;cool&quot;:&quot;冷房 {t} に設定&quot;,&quot;heat&quot;:&quot;暖房 {t} に設定&quot;,&quot;auto&quot;:&quot;自動 {t} に設定&quot;},&quot;dehu&quot;:{&quot;off&quot;:&quot;オフ&quot;,&quot;auto&quot;:&quot;湿度 {t} まで除湿&quot;,&quot;cont&quot;:&quot;連続除湿&quot;,&quot;laundry&quot;:&quot;衣類乾燥&quot;},&quot;air&quot;:{&quot;off&quot;:&quot;オフ&quot;,&quot;on&quot;:&quot;空気質：{q}&quot;}},&quot;now&quot;:{&quot;ac&quot;:&quot;室温 {t}&quot;,&quot;dehu&quot;:&quot;湿度 {t}&quot;,&quot;air&quot;:&quot;PM2.5&quot;},&quot;aq&quot;:[&quot;非常に良い&quot;,&quot;良い&quot;,&quot;普通&quot;,&quot;悪い&quot;,&quot;非常に悪い&quot;]}'>
+      <fieldset class="seg devices">
+        <legend>家電</legend>
+        <label><input type="radio" name="device" value="ac" checked><span>エアコン</span></label><label><input type="radio" name="device" value="dehu"><span>除湿機</span></label><label><input type="radio" name="device" value="air"><span>空気清浄機</span></label>
+      </fieldset>
+      <svg class="scene" viewBox="0 0 480 250" role="img" aria-label="選んだ家電。運転中は風を送ります。">
+      <g class="dev dev-ac">
+        <rect class="body" x="40" y="18" width="400" height="98" rx="28"/>
+        <rect class="vent" x="84" y="88" width="312" height="11" rx="5.5"/>
+        <circle class="led" cx="398" cy="46" r="5"/>
+        <g class="air down">
+          <path d="M120 142q120 42 240 0"/>
+          <path d="M150 186q90 34 180 0"/>
+          <path d="M182 226q58 24 116 0"/>
+        </g>
+      </g>
+      <g class="dev dev-dehu">
+        <rect class="body" x="176" y="86" width="128" height="156" rx="24"/>
+        <path class="vent" d="M204 104h72M204 116h72"/>
+        <rect class="tank" x="194" y="170" width="92" height="54" rx="12"/>
+        <rect class="water" x="194" y="196" width="92" height="28" rx="12"/>
+        <circle class="led" cx="282" cy="140" r="5"/>
+        <g class="air up">
+          <path d="M196 70q44-22 88 0"/>
+          <path d="M210 44q30-16 60 0"/>
+          <path d="M222 20q18-10 36 0"/>
+        </g>
+      </g>
+      <g class="dev dev-air">
+        <rect class="body" x="190" y="80" width="100" height="164" rx="50"/>
+        <circle class="grille" cx="240" cy="170" r="30"/>
+        <circle class="grille" cx="240" cy="170" r="16"/>
+        <path class="vent" d="M218 102h44"/>
+        <circle class="led" cx="240" cy="222" r="5"/>
+        <g class="air up">
+          <path d="M196 66q44-22 88 0"/>
+          <path d="M210 40q30-16 60 0"/>
+          <path d="M222 16q18-10 36 0"/>
+        </g>
+      </g>
+    </svg>
+      <div class="tile">
+        <div class="tile-head">
+          <span class="tile-icon" data-for="ac"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="7.5" rx="2.5"/><path d="M6 10h12M8 16q4 1.6 8 0M10 19.5q2 .9 4 0"/></svg></span><span class="tile-icon" data-for="dehu"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="3"/><path d="M9 6.5h6M9 9h6"/><path d="M12 12.5c1.4 1.7 2.1 2.9 2.1 3.8a2.1 2.1 0 0 1-4.2 0c0-.9.7-2.1 2.1-3.8z"/></svg></span><span class="tile-icon" data-for="air"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="5"/><circle cx="12" cy="13" r="2.6"/><path d="M10 6.5h4"/></svg></span>
+          <div class="tile-name"><strong data-name></strong><span data-status aria-live="polite"></span></div>
+          <span class="tile-now" data-now></span>
+        </div>
+        <div class="dial">
+          <button type="button" class="step" data-step="-1" aria-label="下げる">&minus;</button>
+          <output class="target"><span data-value></span><small data-unit></small></output>
+          <button type="button" class="step" data-step="1" aria-label="上げる">+</button>
+        </div>
+        <fieldset class="seg modes" data-for="ac"><legend>モード</legend><label><input type="radio" name="mode-ac" value="off"><span>オフ</span></label><label><input type="radio" name="mode-ac" value="cool" checked><span>冷房</span></label><label><input type="radio" name="mode-ac" value="heat"><span>暖房</span></label><label><input type="radio" name="mode-ac" value="auto"><span>自動</span></label></fieldset>
+          <fieldset class="seg modes" data-for="dehu"><legend>モード</legend><label><input type="radio" name="mode-dehu" value="off"><span>オフ</span></label><label><input type="radio" name="mode-dehu" value="auto" checked><span>自動</span></label><label><input type="radio" name="mode-dehu" value="cont"><span>連続</span></label><label><input type="radio" name="mode-dehu" value="laundry"><span>衣類乾燥</span></label></fieldset>
+          <fieldset class="seg modes" data-for="air"><legend>モード</legend><label><input type="radio" name="mode-air" value="off"><span>オフ</span></label><label><input type="radio" name="mode-air" value="auto" checked><span>自動</span></label><label><input type="radio" name="mode-air" value="low"><span>弱</span></label><label><input type="radio" name="mode-air" value="high"><span>強</span></label></fieldset>
+      </div>
+      <p class="hint">操作してみてください。各家電に「ホーム」App で付くコントロールのイメージです。</p>
+      <script type="application/json" data-names>{"ac":"リビング","dehu":"寝室","air":"書斎"}</script>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="h-local">
+    <div class="intro">
+      <h2 id="h-local">ローカル優先、クラウドはバックアップ</h2>
+      <p>パナソニックの無線 LAN アダプター CZ-T006 と CZ-T007 は、家のネットワークからも直接つながります。プラグインが自動で見つけ、状態の取得も操作も直接送るので、反応が速く、クラウドのリクエスト制限にもかかりません。</p>
+    </div>
+    <ol class="flow">
+        <li class="node"><span class="node-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M9.5 12 12 9.8l2.5 2.2M10.3 11.3v3.2h3.4v-3.2"/></svg></span><strong>「ホーム」App</strong><small>iPhone、iPad、Mac、HomePod</small></li><li class="link" aria-hidden="true"><span>HomeKit</span></li>
+        <li class="node"><span class="node-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="6" rx="1.5"/><rect x="3" y="13" width="18" height="6" rx="1.5"/><path d="M7 8h.01M7 16h.01"/></svg></span><strong>Homebridge</strong><small>プラグインを実行</small></li><li class="link" aria-hidden="true"><span>家のネットワーク</span></li>
+        <li class="node"><span class="node-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="9" width="16" height="11" rx="2"/><path d="M8.5 5.8a5 5 0 0 1 7 0M6.3 3.6a8 8 0 0 1 11.4 0"/><path d="M8 14.5h.01M11 14.5h5"/></svg></span><strong>無線 LAN アダプター</strong><small>CZ-T006 または CZ-T007</small></li>
+    </ol>
+    <div class="cloud">
+      <span class="cloud-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18.5h10.5a4 4 0 0 0 .4-8 5.5 5.5 0 0 0-10.6-1.3A4.7 4.7 0 0 0 7 18.5z"/></svg></span>
+      <div>
+        <h3>アダプターにつながらないとき</h3>
+        <p>そのリクエストは Panasonic Smart App のクラウド経由で送られるので、家電はそのまま使えます。家電は常にアカウントから見つけ、アダプターの IP アドレスが変わっても自動で見つけ直します。</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" aria-labelledby="h-feat">
+    <div class="intro">
+      <h2 id="h-feat">「ホーム」App でできること</h2>
+      <p>各家電はその種類のアクセサリとして表示され、実際に使える操作だけが並びます。</p>
+    </div>
+    <ul class="kinds">
+      <li class="kind">
+        <span class="kind-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="7.5" rx="2.5"/><path d="M6 10h12M8 16q4 1.6 8 0M10 19.5q2 .9 4 0"/></svg></span>
+        <h3>エアコン</h3>
+        <ul><li>電源と、冷房・暖房・自動</li><li>設定温度 16〜30 °C</li><li>室温</li></ul>
+      </li>
+      <li class="kind">
+        <span class="kind-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="3"/><path d="M9 6.5h6M9 9h6"/><path d="M12 12.5c1.4 1.7 2.1 2.9 2.1 3.8a2.1 2.1 0 0 1-4.2 0c0-.9.7-2.1 2.1-3.8z"/></svg></span>
+        <h3>除湿機</h3>
+        <ul><li>電源と目標湿度 40〜70%</li><li>現在の湿度と風量</li><li>衣類乾燥など、その機種のモードごとのスイッチ</li><li>タンクが満水になると表示</li><li>ナノイーと操作音のスイッチ</li></ul>
+      </li>
+      <li class="kind">
+        <span class="kind-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="5"/><circle cx="12" cy="13" r="2.6"/><path d="M10 6.5h4"/></svg></span>
+        <h3>空気清浄機</h3>
+        <ul><li>電源と風量</li><li>PM2.5 の値と空気質</li><li>ナノイーのスイッチ</li></ul>
+      </li>
+    </ul>
+    <p class="fine">どれもほかの「ホーム」アクセサリと同じように、Siri、シーン、オートメーションで使えます。</p>
+  </section>
+
+  <section class="band" aria-labelledby="h-pick">
+    <div class="split">
+      <div class="intro">
+        <h2 id="h-pick">HomeKit に出す家電を選べます</h2>
+        <p>プラグインの設定画面には、Smart App アカウントのすべての家電が型番と現在の状態つきで並びます。対応する家電には「In HomeKit」スイッチがあり、オフにすると次の再起動で「ホーム」App から外れます。</p>
+        <p>あとからアカウントに追加した家電は自動で含まれます。冷蔵庫や洗濯機など、まだ操作できない家電は非対応と表示されます。</p>
+      </div>
+      <figure class="preview">
+        <div class="pv-head" aria-hidden="true"><strong>Panasonic Smart App Devices</strong><span>Load devices</span></div>
+        <div class="pv-cards" aria-hidden="true">
+        <div class="pv-card">
+          <span class="pv-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="19" height="7.5" rx="2.5"/><path d="M6 10h12M8 16q4 1.6 8 0M10 19.5q2 .9 4 0"/></svg></span>
+          <div class="pv-title"><strong>リビングのエアコン</strong><small>Air Conditioner</small></div>
+          <span class="pv-switch"><i></i>In HomeKit</span>
+          <div class="pv-chips"><span>On</span><span>Cool</span><span>Now 28°C</span><span>Set 26°C</span></div>
+        </div>
+        <div class="pv-card">
+          <span class="pv-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="3" width="12" height="18" rx="3"/><path d="M9 6.5h6M9 9h6"/><path d="M12 12.5c1.4 1.7 2.1 2.9 2.1 3.8a2.1 2.1 0 0 1-4.2 0c0-.9.7-2.1 2.1-3.8z"/></svg></span>
+          <div class="pv-title"><strong>寝室の除湿機</strong><small>Dehumidifier</small></div>
+          <span class="pv-switch"><i></i>In HomeKit</span>
+          <div class="pv-chips"><span>On</span><span>Humidity 62%</span><span>Target 50%</span></div>
+        </div>
+        <div class="pv-card pv-off">
+          <span class="pv-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M5 10h14M8 6.5v1M8 13v2"/></svg></span>
+          <div class="pv-title"><strong>冷蔵庫</strong><small>Refrigerator</small></div>
+          <span class="pv-badge">Not supported</span>
+          <div class="pv-chips"></div>
+        </div>
+        </div>
+        <figcaption>Homebridge UI のプラグイン設定画面（表示は英語）。</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="band" id="start" aria-labelledby="h-start">
+    <h2 id="h-start">数分でセットアップ</h2>
+    <ol class="steps"><li><h3>プラグインをインストール</h3><p>Homebridge UI のプラグイン画面で Panasonic Smart App を検索してインストールします。</p></li><li><h3>サインイン</h3><p>プラグイン設定を開き、Panasonic Smart App アカウントのメールアドレスとパスワードを入力して保存します。</p></li><li><h3>家電を選んで再起動</h3><p>家電が現在の状態つきで並びます。HomeKit に出したくないものをオフにして、Homebridge を再起動します。</p></li></ol>
+    <p class="fine">Homebridge 1.6 以降（Homebridge 2 を含む）、Node.js 18 以降で動作します。 <a href="https://github.com/tasict/homebridge-panasonic-smart-app#homebridge-setup">設定項目の詳しい説明（英語）</a></p>
+  </section>
+
+  <section class="band" aria-labelledby="h-know">
+    <div class="intro">
+      <h2 id="h-know">知っておきたいこと</h2>
+    </div>
+    <dl class="notes"><div><dt>台湾の Smart App 向け</dt><dd>プラグインは台湾の Panasonic Smart App サービスを使います。先にそのアプリで家電を設定してください。</dd></div><div><dt>アカウントは分けるのがおすすめ</dt><dd>スマートフォンと Homebridge で同じアカウントを同時に使うと、片方がサインアウトされることがあります。Homebridge 用のアカウントを作り、メインのアカウントから家電を共有してください。</dd></div><div><dt>サインインは一度だけ</dt><dd>セッションは Homebridge の保存領域に保存して再利用するので、再起動のたびにパスワードを送ることはありません。</dd></div><div><dt>ほかのネットワーク構成</dt><dd>アダプターが別の VLAN にある場合は、詳細設定で家電を IP アドレスに対応づけられます。クラウドだけで使いたいときも、そこでローカル操作をオフにできます。</dd></div></dl>
+  </section>
+
+  <section class="band" aria-labelledby="h-support">
+    <div class="tipjar">
+      <img src="../assets/boba.png" alt="" width="120" height="120">
+      <div>
+        <h2 id="h-support">無料のままで続けるために</h2>
+        <p>このプラグインには広告も有料版もありません。快適に使えていたら、タピオカ 1 杯や少しのご支援が、パナソニックのサービスの変更や Homebridge の新バージョンへの対応を続ける力になります。</p>
+        <div class="actions">
+          <a class="btn" href="https://tasict.bobaboba.me"><img src="../assets/boba.png" alt="" width="22" height="22">タピオカをおごる</a>
+          <a class="tip" href="https://paypal.me/tasict">PayPal で支援</a>
+        </div>
+        <p class="fine">タピオカはクレジットカードで支払えます。PayPal アカウントは不要です。</p>
+      </div>
+    </div>
+  </section>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <p>tasict 作。Apache-2.0 ライセンスで公開しています。</p>
+        <ul>
+          <li><a href="https://github.com/tasict/homebridge-panasonic-smart-app">ソースコード</a></li>
+          <li><a href="https://www.npmjs.com/package/homebridge-panasonic-smart-app">npm パッケージ</a></li>
+          <li><a href="https://github.com/tasict/homebridge-panasonic-smart-app/blob/master/CHANGELOG.md">変更履歴</a></li>
+          <li><a href="https://github.com/tasict/homebridge-panasonic-smart-app/issues">問題を報告</a></li>
+        </ul>
+      </div>
+      <ul class="langs"><li><a href="../" hreflang="en" lang="en">English</a></li><li><a href="../zh-TW/" hreflang="zh-TW" lang="zh-Hant-TW">繁體中文</a></li><li><a href="../ja/" hreflang="ja" lang="ja" aria-current="page">日本語</a></li></ul>
+    </div>
+    <p class="tm">Panasonic（パナソニック）は Panasonic Holdings Corporation の商標です。Apple Home（ホーム）と HomeKit は Apple Inc. の商標です。本プラグインは非公式で、これらの企業とは関係がなく、承認も受けていません。</p>
+  </div>
+</footer>
+<script src="../assets/site.js"></script>
+</body>
+</html>

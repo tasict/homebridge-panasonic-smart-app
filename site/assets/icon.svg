@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Homebridge Panasonic Smart App Platform">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0E6ECB"/>
+      <stop offset="1" stop-color="#02459A"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="512" height="512" rx="100" fill="url(#tile)"/>
+  <path d="M170 418V168a22 22 0 0 1 22-22h68a89 89 0 0 1 0 178h-90" fill="none" stroke="#FFFFFF" stroke-width="38" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M266 374q62 4 122-38" fill="none" stroke="#DCE8F7" stroke-width="28" stroke-linecap="round"/>
+  <path d="M266 424q52 2 94-20" fill="none" stroke="#9DBDE6" stroke-width="28" stroke-linecap="round" opacity="0.85"/>
+</svg>

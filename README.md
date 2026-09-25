@@ -10,16 +10,36 @@
   <a href="https://www.npmjs.com/package/homebridge-panasonic-smart-app"><img src="https://img.shields.io/npm/v/homebridge-panasonic-smart-app?color=%23cb3837&label=npm" alt="npm version"></a>
 </p>
 
+<p align="center">
+  <b>Website: <a href="https://tasict.github.io/homebridge-panasonic-smart-app/">tasict.github.io/homebridge-panasonic-smart-app</a></b> (English, 繁體中文, 日本語)
+</p>
+
 `homebridge-panasonic-smart-app` is a dynamic platform plugin for [Homebridge](https://homebridge.io) that provides HomeKit support for devices registered in the Panasonic (Taiwan) Smart App, including air conditioners, dehumidifiers, and air purifiers.
+
+Free and open source. If it keeps your home comfortable, you can [buy me a boba](https://tasict.bobaboba.me) (by card, no PayPal account needed) or [tip with PayPal](https://paypal.me/tasict).
+
+Requires Homebridge 1.6 or later (Homebridge 2 is supported) and Node.js 18 or later.
 
 ## How it works
 The plugin discovers your devices through the Panasonic (Taiwan) Smart App cloud service, so your devices must be registered and set up there first. Once discovered, when a device's Wi-Fi module can be reached on your local network the plugin talks to it **directly over the LAN** and only falls back to the cloud when the local path is unavailable — this is faster and avoids the cloud rate limit. See [Local control](#local-control).
 
 By default every supported device on your account appears in your Home app. You can choose which devices to expose from the plugin's settings screen — see [Choosing which devices appear in HomeKit](#choosing-which-devices-appear-in-homekit). If you remove a device from your Smart App account, it also disappears from your Home app after you restart Homebridge.
 
+## What you get in HomeKit
+
+| Device | In the Home app |
+| --- | --- |
+| Air conditioner | Power; Cool, Heat or Auto; target temperature (16–30 °C); room temperature |
+| Dehumidifier | Power; target humidity (40–70%); current humidity; fan speed; a full-tank indicator (water level); a switch for each of the unit's own modes (for example laundry drying); switches for nanoe and the button beep |
+| Air purifier | Power; fan speed; air quality with the PM2.5 reading; a switch for nanoe |
+
+Other appliances on your account (refrigerators, washing machines and so on) are listed as *not supported* in the settings screen and are not added to HomeKit.
+
 ## Smart App account
 
-In the past, using the same account on multiple devices often resulted in being logged out of one of them. This made it necessary to create a secondary account in order for the plugin to operate reliably.
+Using the same account on your phone and in Homebridge at the same time can sign one of them out. For the plugin to run reliably, create a second Smart App account for Homebridge and share your devices with it from your main account.
+
+The plugin saves its login session in Homebridge's storage directory (`panasonic-smart-app-session.json`) and reuses it across restarts, so it doesn't sign in with your password every time Homebridge starts.
 
 ## Homebridge setup
 Configure the plugin through the settings UI or directly in the JSON editor:
@@ -91,6 +111,13 @@ Open the plugin's settings in the Homebridge UI. Every device on your account is
 
 - If the plugin affects the general responsiveness and reliability of your Homebridge setup, you can run it as an isolated [child bridge](https://github.com/homebridge/homebridge/wiki/Child-Bridges).
 
+## Support
+
+The plugin has no ads and no paid version. If it's useful to you, I'd love it if you bought me a boba:
+
+- **[Buy me a boba](https://tasict.bobaboba.me)**: pay by card, no PayPal account needed
+- **[Tip with PayPal](https://paypal.me/tasict)**
+
 ## Contributing
 
 You can contribute to this project in the following ways:
@@ -110,4 +137,4 @@ You can contribute to this project in the following ways:
 
 
 ## Disclaimer
-All product and company names are trademarks™ or registered® trademarks of their respective holders. Use of them does not imply any affiliation with or endorsement by them.
+This plugin is unofficial and is not affiliated with, endorsed by, or sponsored by Panasonic. All product and company names are trademarks™ or registered® trademarks of their respective holders. Use of them does not imply any affiliation with or endorsement by them.
