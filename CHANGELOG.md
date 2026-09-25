@@ -4,6 +4,28 @@ All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html), and the format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.0.1] - 2026-09-25
+
+### Added
+- **Project website** in English, Traditional Chinese and Japanese:
+  [tasict.github.io/homebridge-panasonic-smart-app](https://tasict.github.io/homebridge-panasonic-smart-app/).
+  It is now the plugin's homepage in the Homebridge UI.
+- You can now support the plugin by buying me a boba (paid by card, no PayPal account needed) as
+  well as with PayPal: from the bottom of the plugin settings, the donate link in the Homebridge UI,
+  the README or GitHub's Sponsor button.
+
+### Fixed
+- Settings screen: the **In HomeKit** switch and the *Not supported* badge now render correctly on
+  current Homebridge UI versions, device icons are drawn inline instead of relying on an icon
+  font, long device names no longer squeeze the card, and secondary text stays readable in dark
+  mode.
+
+### Changed
+- The npm package now contains only what the plugin needs to run. Earlier versions also shipped the
+  TypeScript sources, development notes and a sample API response.
+- README: new *What you get in HomeKit* and *Support* sections, and a clearer explanation of why a
+  second Smart App account is recommended.
+
 ## [2.0.0] - 2026-07-24
 
 ### Added
@@ -32,4 +54,5 @@ All notable changes to this project are documented here. This project adheres to
 ### Dependencies
 - Added `@homebridge/plugin-ui-utils` for the custom settings screen.
 
+[2.0.1]: https://github.com/tasict/homebridge-panasonic-smart-app/releases/tag/v2.0.1
 [2.0.0]: https://github.com/tasict/homebridge-panasonic-smart-app/releases/tag/v2.0.0
