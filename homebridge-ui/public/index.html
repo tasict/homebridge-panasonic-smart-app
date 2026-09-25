@@ -206,10 +206,13 @@
       }
 
       const excluded = excludedSet();
+      statusElements.clear();
 
-      for (const device of devices) {
+      devices.forEach((device, index) => {
         const key = String(device.gwid).toUpperCase();
-        const switchId = 'pn-sw-' + key;
+        // GWIDs aren't always MACs: newer built-in Wi-Fi models use base64-like
+        // ids with '+', '/' and '='. Keep them out of element ids and selectors.
+        const switchId = 'pn-sw-' + index;
         const included = !excluded.has(key);
 
         // Bootstrap 4 (older Homebridge UI) and 5 (current) name the switch and badge classes
@@ -236,13 +239,14 @@
           + '</div>'
           + '<div class="pn-meta">' + escapeHtml(device.model || '')
           + ' &middot; ' + escapeHtml(device.gwid) + '</div>'
-          + '<div class="pn-status" id="pn-status-' + key + '">'
+          + '<div class="pn-status">'
           + '<span class="text-muted pn-msg">Loading status…</span></div>'
           + '</div>';
         grid.appendChild(card);
+        statusElements.set(String(device.gwid), card.querySelector('.pn-status'));
 
         if (device.supported) {
-          const input = card.querySelector('#' + switchId);
+          const input = card.querySelector('input[type="checkbox"]');
           input.addEventListener('change', async () => {
             const set = excludedSet();
             if (input.checked) {
@@ -261,12 +265,15 @@
             }
           });
         }
-      }
+      });
     }
+
+    // Each device's status element, by GWID.
+    const statusElements = new Map();
 
     function applyStatuses(statuses) {
       for (const gwid of Object.keys(statuses || {})) {
-        const el = document.getElementById('pn-status-' + String(gwid).toUpperCase());
+        const el = statusElements.get(String(gwid));
         if (el) {
           el.innerHTML = statusChips(
             lastDevices.find((d) => d.gwid === gwid) || {}, statuses[gwid]);

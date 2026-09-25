@@ -532,7 +532,10 @@ export default class SmartAppApi {
     try {
       const devicesByGwid = new Map<string, SmartAppDevice>();
       for (const device of this._devices) {
-        devicesByGwid.set(this.normalizeGwid(device.GWID), device);
+        const gwid = this.normalizeGwid(device.GWID);
+        if (gwid) {
+          devicesByGwid.set(gwid, device);
+        }
       }
       if (devicesByGwid.size === 0) {
         return;
@@ -617,8 +620,14 @@ export default class SmartAppApi {
     }
   }
 
+  /**
+   * The GWID as a bare upper-case MAC, or '' when it isn't a MAC. Newer
+   * built-in Wi-Fi models use base64-like GWIDs ('+', '/', '=') that no
+   * TaiSEIA module's device.xml will ever match.
+   */
   private normalizeGwid(gwid: string): string {
-    return (gwid || '').toUpperCase().replace(/[^0-9A-F]/g, '');
+    const mac = (gwid || '').toUpperCase().replace(/[:-]/g, '');
+    return /^[0-9A-F]{12}$/.test(mac) ? mac : '';
   }
 
   private localClientFor(device: SmartAppDevice): TaiSeiaClient | undefined {
