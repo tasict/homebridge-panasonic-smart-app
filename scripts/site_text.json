@@ -1,16 +1,16 @@
 {
   "en": {
     "title": "Panasonic Smart App for Homebridge: your Panasonic appliances in Apple Home",
-    "desc": "A free Homebridge plugin that brings the air conditioners, dehumidifiers and air purifiers in your Panasonic Smart App (Taiwan) into Apple Home, controlled on your home network whenever it can be.",
+    "desc": "A free Homebridge plugin that brings the appliances in your Panasonic Smart App (Taiwan) into Apple Home: air conditioners, dehumidifiers, air purifiers, heat exchangers and smart switches, plus notifications from washers and dryers.",
     "lang_menu": "Language",
     "source": "Source code",
     "h1": "Your Panasonic,\nin Apple Home.",
-    "lede": "A Homebridge plugin that puts the air conditioners, dehumidifiers and air purifiers from your Panasonic Smart App in the Home app. It talks to them directly on your home network when it can, and through Panasonic's cloud when it can't.",
+    "lede": "A Homebridge plugin that puts the appliances in your Panasonic Smart App in the Home app: air conditioners, dehumidifiers, air purifiers, heat exchangers and smart switches, and your washer and dryer tell you when they're done. It talks to them directly on your home network when it can, and through Panasonic's cloud when it can't.",
     "cta": "Install in Homebridge",
     "github": "View on GitHub",
     "fine": "Free and open source. For devices in the Panasonic Smart App (Taiwan).",
     "device_legend": "Device",
-    "devices": { "ac": "Air conditioner", "dehu": "Dehumidifier", "air": "Air purifier" },
+    "devices": { "ac": "Air conditioner", "dehu": "Dehumidifier", "air": "Air purifier", "erv": "Heat exchanger (ERV)", "switch": "Smart switch", "laundry": "Washer and dryer" },
     "names": { "ac": "Living Room", "dehu": "Bedroom", "air": "Study" },
     "modes": {
       "ac": { "off": "Off", "cool": "Cool", "heat": "Heat", "auto": "Auto" },
@@ -44,12 +44,15 @@
     "kinds": {
       "ac": ["Power, and Cool, Heat or Auto", "Target temperature, 16 to 30 °C", "Room temperature"],
       "dehu": ["Power and target humidity, 40 to 70%", "Current humidity and fan speed", "A switch for each of the unit's own modes, such as laundry drying", "Shows when the water tank is full", "Switches for nanoe and the button beep"],
-      "air": ["Power and fan speed", "Air quality with the PM2.5 reading", "A switch for nanoe"]
+      "air": ["Power and fan speed", "Air quality with the PM2.5 reading", "A switch for nanoe"],
+      "erv": ["Power and fan speed, with Auto on models that have it", "A switch for each ventilation mode", "Indoor and outdoor temperature, on models that report them"],
+      "switch": ["One switch per circuit, on one- to three-gang models", "Show a circuit as a light or a fan with the Home app's Display As", "Circuits are switched through Panasonic's cloud"],
+      "laundry": ["A Done sensor that notifies you when a cycle finishes", "A Running sensor for automations", "Notifications only: as Panasonic's safety rules require, cycles are started on the machine"]
     },
     "feat_note": "All of them work with Siri, scenes and automations, like any other Home accessory.",
     "pick_h2": "Choose what shows up in HomeKit",
     "pick_p": "The plugin's settings screen lists every device on your Smart App account with its model and live status. Each supported device has an In HomeKit switch: turn it off and the device leaves the Home app after the next restart.",
-    "pick_p2": "Devices you add to your account later are included automatically. Refrigerators, washing machines and other appliances the plugin can't control yet are marked as not supported.",
+    "pick_p2": "Devices you add to your account later are included automatically. Refrigerators and other appliances the plugin can't handle yet are marked as not supported.",
     "preview_title": "Panasonic Smart App Devices",
     "preview_load": "Load devices",
     "in_homekit": "In HomeKit",
@@ -106,16 +109,16 @@
   },
   "zh-TW": {
     "title": "Panasonic Smart App for Homebridge：把國際牌家電放進 Apple「家庭」",
-    "desc": "免費的 Homebridge 外掛，把 Panasonic Smart App（台灣）裡的冷氣、除濕機和空氣清淨機接進 Apple「家庭」App，能在家裡網路直接控制時就不經過雲端。",
+    "desc": "免費的 Homebridge 外掛，把 Panasonic Smart App（台灣）裡的家電接進 Apple「家庭」App：冷氣、除濕機、空氣清淨機、全熱交換器和智慧開關，洗衣機和乾衣機也能通知你。",
     "lang_menu": "語言",
     "source": "原始碼",
     "h1": "你的國際牌家電，\n放進「家庭」App。",
-    "lede": "這是一個 Homebridge 外掛，把 Panasonic Smart App 裡的冷氣、除濕機和空氣清淨機放進「家庭」App。能在家裡的網路上直接連到家電時就直接溝通，連不到時才透過 Panasonic 的雲端。",
+    "lede": "這是一個 Homebridge 外掛，把 Panasonic Smart App 裡的家電放進「家庭」App：冷氣、除濕機、空氣清淨機、全熱交換器和智慧開關，洗衣機和乾衣機跑完也會通知你。能在家裡的網路上直接連到家電時就直接溝通，連不到時才透過 Panasonic 的雲端。",
     "cta": "在 Homebridge 安裝",
     "github": "在 GitHub 查看",
     "fine": "免費、開放原始碼。適用於 Panasonic Smart App（台灣）裡的家電。",
     "device_legend": "家電",
-    "devices": { "ac": "冷氣", "dehu": "除濕機", "air": "空氣清淨機" },
+    "devices": { "ac": "冷氣", "dehu": "除濕機", "air": "空氣清淨機", "erv": "全熱交換器", "switch": "智慧開關", "laundry": "洗衣機與乾衣機" },
     "names": { "ac": "客廳冷氣", "dehu": "臥室除濕機", "air": "書房清淨機" },
     "modes": {
       "ac": { "off": "關閉", "cool": "冷氣", "heat": "暖氣", "auto": "自動" },
@@ -149,12 +152,15 @@
     "kinds": {
       "ac": ["開關，以及冷氣、暖氣、自動模式", "設定溫度 16 至 30 °C", "室內溫度"],
       "dehu": ["開關與目標濕度 40 至 70%", "目前濕度與風量", "依機型提供各模式的開關，例如衣物乾燥", "水箱滿水時會顯示出來", "nanoe 與操作提示音開關"],
-      "air": ["開關與風量", "空氣品質與 PM2.5 數值", "nanoe 開關"]
+      "air": ["開關與風量", "空氣品質與 PM2.5 數值", "nanoe 開關"],
+      "erv": ["開關與風量，機型有自動風量時可切換自動", "每種換氣模式各一個開關", "有回報的機型會顯示室內外溫度"],
+      "switch": ["每一路迴路各一個開關，支援一到三開", "可用「家庭」App 的「顯示為」改成燈或風扇", "迴路透過 Panasonic 雲端控制"],
+      "laundry": ["「完成」感應器，洗好、烘好時通知你", "「運轉中」感應器，可用於自動化", "只提供通知：依 Panasonic 的安全規範，啟動仍需在機器上操作"]
     },
     "feat_note": "每一台都能用 Siri、場景和自動化操作，就像其他「家庭」配件一樣。",
     "pick_h2": "自己決定哪些家電出現在 HomeKit",
     "pick_p": "外掛的設定頁會列出 Smart App 帳號裡的每台家電，附上型號和即時狀態。支援的家電都有「In HomeKit」開關：關掉後，下次重新啟動時這台家電就會從「家庭」App 移除。",
-    "pick_p2": "之後才加到帳號裡的家電會自動加入。冰箱、洗衣機等外掛還無法控制的家電，會標示為不支援。",
+    "pick_p2": "之後才加到帳號裡的家電會自動加入。冰箱等外掛還無法處理的家電，會標示為不支援。",
     "preview_title": "Panasonic Smart App Devices",
     "preview_load": "Load devices",
     "in_homekit": "In HomeKit",
@@ -211,16 +217,16 @@
   },
   "ja": {
     "title": "Panasonic Smart App for Homebridge：パナソニックの家電を Apple「ホーム」に",
-    "desc": "Panasonic Smart App（台湾）に登録したエアコン、除湿機、空気清浄機を Apple「ホーム」App に追加する、無料の Homebridge プラグイン。できる限り家のネットワーク内で直接操作します。",
+    "desc": "Panasonic Smart App（台湾）の家電を Apple「ホーム」App に追加する、無料の Homebridge プラグイン。エアコン、除湿機、空気清浄機、全熱交換器、スマートスイッチに対応し、洗濯機・衣類乾燥機は運転の完了を通知します。",
     "lang_menu": "言語",
     "source": "ソースコード",
     "h1": "パナソニックの家電を\n「ホーム」App で。",
-    "lede": "Panasonic Smart App のエアコン、除湿機、空気清浄機を「ホーム」App に追加する Homebridge プラグインです。家のネットワークで直接つながるときは直接やり取りし、つながらないときだけパナソニックのクラウドを使います。",
+    "lede": "Panasonic Smart App の家電を「ホーム」App に追加する Homebridge プラグインです。エアコン、除湿機、空気清浄機、全熱交換器、スマートスイッチに対応し、洗濯機と衣類乾燥機は終わると知らせてくれます。家のネットワークで直接つながるときは直接やり取りし、つながらないときだけパナソニックのクラウドを使います。",
     "cta": "Homebridge にインストール",
     "github": "GitHub で見る",
     "fine": "無料のオープンソース。Panasonic Smart App（台湾）の家電に対応。",
     "device_legend": "家電",
-    "devices": { "ac": "エアコン", "dehu": "除湿機", "air": "空気清浄機" },
+    "devices": { "ac": "エアコン", "dehu": "除湿機", "air": "空気清浄機", "erv": "全熱交換器", "switch": "スマートスイッチ", "laundry": "洗濯機・衣類乾燥機" },
     "names": { "ac": "リビング", "dehu": "寝室", "air": "書斎" },
     "modes": {
       "ac": { "off": "オフ", "cool": "冷房", "heat": "暖房", "auto": "自動" },
@@ -254,12 +260,15 @@
     "kinds": {
       "ac": ["電源と、冷房・暖房・自動", "設定温度 16〜30 °C", "室温"],
       "dehu": ["電源と目標湿度 40〜70%", "現在の湿度と風量", "衣類乾燥など、その機種のモードごとのスイッチ", "タンクが満水になると表示", "ナノイーと操作音のスイッチ"],
-      "air": ["電源と風量", "PM2.5 の値と空気質", "ナノイーのスイッチ"]
+      "air": ["電源と風量", "PM2.5 の値と空気質", "ナノイーのスイッチ"],
+      "erv": ["電源と風量。自動風量のある機種は自動にも", "換気モードごとのスイッチ", "報告する機種では室内・室外の温度"],
+      "switch": ["回路ごとのスイッチ（1〜3 回路）", "「ホーム」App の「表示形式」で照明や扇風機として表示", "回路の操作はパナソニックのクラウド経由"],
+      "laundry": ["運転が終わると通知する「完了」センサー", "オートメーション用の「運転中」センサー", "通知のみ。安全上、運転の開始は本体で行います"]
     },
     "feat_note": "どれもほかの「ホーム」アクセサリと同じように、Siri、シーン、オートメーションで使えます。",
     "pick_h2": "HomeKit に出す家電を選べます",
     "pick_p": "プラグインの設定画面には、Smart App アカウントのすべての家電が型番と現在の状態つきで並びます。対応する家電には「In HomeKit」スイッチがあり、オフにすると次の再起動で「ホーム」App から外れます。",
-    "pick_p2": "あとからアカウントに追加した家電は自動で含まれます。冷蔵庫や洗濯機など、まだ操作できない家電は非対応と表示されます。",
+    "pick_p2": "あとからアカウントに追加した家電は自動で含まれます。冷蔵庫など、まだ扱えない家電は非対応と表示されます。",
     "preview_title": "Panasonic Smart App Devices",
     "preview_load": "Load devices",
     "in_homekit": "In HomeKit",

@@ -19,8 +19,9 @@ const LANGS = [
   ['ja', 'ja/', 'ja', '日本語', 'ja_JP']
 ];
 
-// The device types the plugin supports, in the order they appear everywhere on the page.
+// The appliances in the hero demo, and every kind the plugin supports (the feature cards).
 const DEVICES = ['ac', 'dehu', 'air'];
+const KINDS = [...DEVICES, 'erv', 'switch', 'laundry'];
 
 const svg = (body, size = 22) =>
   `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
@@ -30,6 +31,9 @@ const GLYPH = {
   ac: svg('<rect x="2.5" y="5" width="19" height="7.5" rx="2.5"/><path d="M6 10h12M8 16q4 1.6 8 0M10 19.5q2 .9 4 0"/>'),
   dehu: svg('<rect x="6" y="3" width="12" height="18" rx="3"/><path d="M9 6.5h6M9 9h6"/><path d="M12 12.5c1.4 1.7 2.1 2.9 2.1 3.8a2.1 2.1 0 0 1-4.2 0c0-.9.7-2.1 2.1-3.8z"/>'),
   air: svg('<rect x="7" y="2.5" width="10" height="19" rx="5"/><circle cx="12" cy="13" r="2.6"/><path d="M10 6.5h4"/>'),
+  erv: svg('<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h6M7 14h6M16 9.5l2 2.5-2 2.5"/>'),
+  switch: svg('<rect x="5" y="3" width="14" height="18" rx="2.5"/><rect x="8.5" y="6.5" width="7" height="11" rx="1.5"/><path d="M12 9v3"/>'),
+  laundry: svg('<rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M4 7h16M7.5 4.8h.01"/><circle cx="12" cy="14" r="4.5"/>'),
   other: svg('<rect x="5" y="3" width="14" height="18" rx="2.5"/><path d="M5 10h14M8 6.5v1M8 13v2"/>')
 };
 const PHONE = svg('<rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M9.5 12 12 9.8l2.5 2.2M10.3 11.3v3.2h3.4v-3.2"/>');
@@ -120,7 +124,7 @@ function page([code, dir, htmlLang, native, og]) {
     `<li class="node"><span class="node-icon">${flowIcons[i]}</span><strong>${e(name)}</strong><small>${e(sub)}</small></li>` +
     (i < t.flow_links.length ? `<li class="link" aria-hidden="true"><span>${e(t.flow_links[i])}</span></li>` : '')).join('\n        ');
 
-  const kinds = DEVICES.map(d => `<li class="kind">
+  const kinds = KINDS.map(d => `<li class="kind">
         <span class="kind-icon">${GLYPH[d]}</span>
         <h3>${e(t.devices[d])}</h3>
         <ul>${t.kinds[d].map(x => `<li>${e(x)}</li>`).join('')}</ul>

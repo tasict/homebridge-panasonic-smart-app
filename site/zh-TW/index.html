@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Panasonic Smart App for Homebridge：把國際牌家電放進 Apple「家庭」</title>
-<meta name="description" content="免費的 Homebridge 外掛，把 Panasonic Smart App（台灣）裡的冷氣、除濕機和空氣清淨機接進 Apple「家庭」App，能在家裡網路直接控制時就不經過雲端。">
+<meta name="description" content="免費的 Homebridge 外掛，把 Panasonic Smart App（台灣）裡的家電接進 Apple「家庭」App：冷氣、除濕機、空氣清淨機、全熱交換器和智慧開關，洗衣機和乾衣機也能通知你。">
 <link rel="canonical" href="https://tasict.github.io/homebridge-panasonic-smart-app/zh-TW/">
 <link rel="alternate" hreflang="en" href="https://tasict.github.io/homebridge-panasonic-smart-app/">
 <link rel="alternate" hreflang="zh-TW" href="https://tasict.github.io/homebridge-panasonic-smart-app/zh-TW/">
@@ -12,7 +12,7 @@
 <link rel="alternate" hreflang="x-default" href="https://tasict.github.io/homebridge-panasonic-smart-app/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Panasonic Smart App for Homebridge：把國際牌家電放進 Apple「家庭」">
-<meta property="og:description" content="免費的 Homebridge 外掛，把 Panasonic Smart App（台灣）裡的冷氣、除濕機和空氣清淨機接進 Apple「家庭」App，能在家裡網路直接控制時就不經過雲端。">
+<meta property="og:description" content="免費的 Homebridge 外掛，把 Panasonic Smart App（台灣）裡的家電接進 Apple「家庭」App：冷氣、除濕機、空氣清淨機、全熱交換器和智慧開關，洗衣機和乾衣機也能通知你。">
 <meta property="og:url" content="https://tasict.github.io/homebridge-panasonic-smart-app/zh-TW/">
 <meta property="og:image" content="https://tasict.github.io/homebridge-panasonic-smart-app/assets/og.png">
 <meta property="og:locale" content="zh_TW">
@@ -39,7 +39,7 @@
   <section class="hero" aria-labelledby="hero-title">
     <div class="hero-copy">
       <h1 id="hero-title">你的國際牌家電，<br>放進「家庭」App。</h1>
-      <p class="lede">這是一個 Homebridge 外掛，把 Panasonic Smart App 裡的冷氣、除濕機和空氣清淨機放進「家庭」App。能在家裡的網路上直接連到家電時就直接溝通，連不到時才透過 Panasonic 的雲端。</p>
+      <p class="lede">這是一個 Homebridge 外掛，把 Panasonic Smart App 裡的家電放進「家庭」App：冷氣、除濕機、空氣清淨機、全熱交換器和智慧開關，洗衣機和乾衣機跑完也會通知你。能在家裡的網路上直接連到家電時就直接溝通，連不到時才透過 Panasonic 的雲端。</p>
       <div class="actions">
         <a class="btn" href="#start">在 Homebridge 安裝</a>
         <a href="https://github.com/tasict/homebridge-panasonic-smart-app">在 GitHub 查看</a>
@@ -147,6 +147,21 @@
         <h3>空氣清淨機</h3>
         <ul><li>開關與風量</li><li>空氣品質與 PM2.5 數值</li><li>nanoe 開關</li></ul>
       </li>
+      <li class="kind">
+        <span class="kind-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h6M7 14h6M16 9.5l2 2.5-2 2.5"/></svg></span>
+        <h3>全熱交換器</h3>
+        <ul><li>開關與風量，機型有自動風量時可切換自動</li><li>每種換氣模式各一個開關</li><li>有回報的機型會顯示室內外溫度</li></ul>
+      </li>
+      <li class="kind">
+        <span class="kind-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2.5"/><rect x="8.5" y="6.5" width="7" height="11" rx="1.5"/><path d="M12 9v3"/></svg></span>
+        <h3>智慧開關</h3>
+        <ul><li>每一路迴路各一個開關，支援一到三開</li><li>可用「家庭」App 的「顯示為」改成燈或風扇</li><li>迴路透過 Panasonic 雲端控制</li></ul>
+      </li>
+      <li class="kind">
+        <span class="kind-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M4 7h16M7.5 4.8h.01"/><circle cx="12" cy="14" r="4.5"/></svg></span>
+        <h3>洗衣機與乾衣機</h3>
+        <ul><li>「完成」感應器，洗好、烘好時通知你</li><li>「運轉中」感應器，可用於自動化</li><li>只提供通知：依 Panasonic 的安全規範，啟動仍需在機器上操作</li></ul>
+      </li>
     </ul>
     <p class="fine">每一台都能用 Siri、場景和自動化操作，就像其他「家庭」配件一樣。</p>
   </section>
@@ -156,7 +171,7 @@
       <div class="intro">
         <h2 id="h-pick">自己決定哪些家電出現在 HomeKit</h2>
         <p>外掛的設定頁會列出 Smart App 帳號裡的每台家電，附上型號和即時狀態。支援的家電都有「In HomeKit」開關：關掉後，下次重新啟動時這台家電就會從「家庭」App 移除。</p>
-        <p>之後才加到帳號裡的家電會自動加入。冰箱、洗衣機等外掛還無法控制的家電，會標示為不支援。</p>
+        <p>之後才加到帳號裡的家電會自動加入。冰箱等外掛還無法處理的家電，會標示為不支援。</p>
       </div>
       <figure class="preview">
         <div class="pv-head" aria-hidden="true"><strong>Panasonic Smart App Devices</strong><span>Load devices</span></div>

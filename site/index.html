@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Panasonic Smart App for Homebridge: your Panasonic appliances in Apple Home</title>
-<meta name="description" content="A free Homebridge plugin that brings the air conditioners, dehumidifiers and air purifiers in your Panasonic Smart App (Taiwan) into Apple Home, controlled on your home network whenever it can be.">
+<meta name="description" content="A free Homebridge plugin that brings the appliances in your Panasonic Smart App (Taiwan) into Apple Home: air conditioners, dehumidifiers, air purifiers, heat exchangers and smart switches, plus notifications from washers and dryers.">
 <link rel="canonical" href="https://tasict.github.io/homebridge-panasonic-smart-app/">
 <link rel="alternate" hreflang="en" href="https://tasict.github.io/homebridge-panasonic-smart-app/">
 <link rel="alternate" hreflang="zh-TW" href="https://tasict.github.io/homebridge-panasonic-smart-app/zh-TW/">
@@ -12,7 +12,7 @@
 <link rel="alternate" hreflang="x-default" href="https://tasict.github.io/homebridge-panasonic-smart-app/">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Panasonic Smart App for Homebridge: your Panasonic appliances in Apple Home">
-<meta property="og:description" content="A free Homebridge plugin that brings the air conditioners, dehumidifiers and air purifiers in your Panasonic Smart App (Taiwan) into Apple Home, controlled on your home network whenever it can be.">
+<meta property="og:description" content="A free Homebridge plugin that brings the appliances in your Panasonic Smart App (Taiwan) into Apple Home: air conditioners, dehumidifiers, air purifiers, heat exchangers and smart switches, plus notifications from washers and dryers.">
 <meta property="og:url" content="https://tasict.github.io/homebridge-panasonic-smart-app/">
 <meta property="og:image" content="https://tasict.github.io/homebridge-panasonic-smart-app/assets/og.png">
 <meta property="og:locale" content="en_US">
@@ -52,7 +52,7 @@ try {
   <section class="hero" aria-labelledby="hero-title">
     <div class="hero-copy">
       <h1 id="hero-title">Your Panasonic,<br>in Apple Home.</h1>
-      <p class="lede">A Homebridge plugin that puts the air conditioners, dehumidifiers and air purifiers from your Panasonic Smart App in the Home app. It talks to them directly on your home network when it can, and through Panasonic&#x27;s cloud when it can&#x27;t.</p>
+      <p class="lede">A Homebridge plugin that puts the appliances in your Panasonic Smart App in the Home app: air conditioners, dehumidifiers, air purifiers, heat exchangers and smart switches, and your washer and dryer tell you when they&#x27;re done. It talks to them directly on your home network when it can, and through Panasonic&#x27;s cloud when it can&#x27;t.</p>
       <div class="actions">
         <a class="btn" href="#start">Install in Homebridge</a>
         <a href="https://github.com/tasict/homebridge-panasonic-smart-app">View on GitHub</a>
@@ -160,6 +160,21 @@ try {
         <h3>Air purifier</h3>
         <ul><li>Power and fan speed</li><li>Air quality with the PM2.5 reading</li><li>A switch for nanoe</li></ul>
       </li>
+      <li class="kind">
+        <span class="kind-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h6M7 14h6M16 9.5l2 2.5-2 2.5"/></svg></span>
+        <h3>Heat exchanger (ERV)</h3>
+        <ul><li>Power and fan speed, with Auto on models that have it</li><li>A switch for each ventilation mode</li><li>Indoor and outdoor temperature, on models that report them</li></ul>
+      </li>
+      <li class="kind">
+        <span class="kind-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2.5"/><rect x="8.5" y="6.5" width="7" height="11" rx="1.5"/><path d="M12 9v3"/></svg></span>
+        <h3>Smart switch</h3>
+        <ul><li>One switch per circuit, on one- to three-gang models</li><li>Show a circuit as a light or a fan with the Home app&#x27;s Display As</li><li>Circuits are switched through Panasonic&#x27;s cloud</li></ul>
+      </li>
+      <li class="kind">
+        <span class="kind-icon"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2.5" width="16" height="19" rx="2.5"/><path d="M4 7h16M7.5 4.8h.01"/><circle cx="12" cy="14" r="4.5"/></svg></span>
+        <h3>Washer and dryer</h3>
+        <ul><li>A Done sensor that notifies you when a cycle finishes</li><li>A Running sensor for automations</li><li>Notifications only: as Panasonic&#x27;s safety rules require, cycles are started on the machine</li></ul>
+      </li>
     </ul>
     <p class="fine">All of them work with Siri, scenes and automations, like any other Home accessory.</p>
   </section>
@@ -169,7 +184,7 @@ try {
       <div class="intro">
         <h2 id="h-pick">Choose what shows up in HomeKit</h2>
         <p>The plugin&#x27;s settings screen lists every device on your Smart App account with its model and live status. Each supported device has an In HomeKit switch: turn it off and the device leaves the Home app after the next restart.</p>
-        <p>Devices you add to your account later are included automatically. Refrigerators, washing machines and other appliances the plugin can&#x27;t control yet are marked as not supported.</p>
+        <p>Devices you add to your account later are included automatically. Refrigerators and other appliances the plugin can&#x27;t handle yet are marked as not supported.</p>
       </div>
       <figure class="preview">
         <div class="pv-head" aria-hidden="true"><strong>Panasonic Smart App Devices</strong><span>Load devices</span></div>
