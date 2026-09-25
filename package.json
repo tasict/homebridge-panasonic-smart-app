@@ -1,7 +1,7 @@
 {
   "name": "homebridge-panasonic-smart-app",
   "displayName": "Homebridge Panasonic Smart App Platform",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Homebridge platform plugin providing HomeKit support for the air conditioners, dehumidifiers and air purifiers in the Panasonic Smart App (Taiwan), with local LAN control.",
   "license": "Apache-2.0",
   "repository": {
