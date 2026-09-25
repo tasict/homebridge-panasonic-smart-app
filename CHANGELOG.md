@@ -4,6 +4,15 @@ All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html), and the format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.1.1] - 2026-09-25
+
+### Fixed
+- Settings screen: *Load devices* failed with "not a valid selector" when the account has a
+  device whose GWID isn't a MAC address (newer built-in Wi-Fi models use ids with `+`, `/` and
+  `=`). Such devices now list, show their status and can be included or excluded like any other.
+- Local control only matches devices whose GWID is a MAC address, so such an id can never be
+  mistaken for a module found on the network.
+
 ## [2.1.0] - 2026-09-25
 
 ### Added
@@ -78,6 +87,7 @@ All notable changes to this project are documented here. This project adheres to
 ### Dependencies
 - Added `@homebridge/plugin-ui-utils` for the custom settings screen.
 
+[2.1.1]: https://github.com/tasict/homebridge-panasonic-smart-app/releases/tag/v2.1.1
 [2.1.0]: https://github.com/tasict/homebridge-panasonic-smart-app/releases/tag/v2.1.0
 [2.0.1]: https://github.com/tasict/homebridge-panasonic-smart-app/releases/tag/v2.0.1
 [2.0.0]: https://github.com/tasict/homebridge-panasonic-smart-app/releases/tag/v2.0.0

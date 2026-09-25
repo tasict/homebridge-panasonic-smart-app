@@ -1,29 +1,13 @@
-# v2.1.0
+# v2.1.1
 
-Three more kinds of Panasonic appliances in the Home app, and fixes for air purifiers and
-dehumidifiers whose models number their features differently. No configuration changes are needed.
+A fix for accounts with newer Panasonic appliances. No configuration changes are needed.
 
-## Highlights
-
-### Heat exchangers (全熱交換器)
-Heat exchangers such as the FY-ZY series appear as a fan: power and fan speed (with Auto/Manual on
-models that have an automatic speed), a switch for each ventilation mode, and indoor and outdoor
-temperature on models that report them.
-
-### Smart switches (智慧開關)
-Each circuit of a smart switch such as the F540107 / F540207 / F540307 is its own switch. Use
-*Display As* in the Home app to show a circuit as a light or a fan.
-
-### Know when the laundry is done
-Panasonic washers and dryers only accept remote commands after Wi-Fi control is enabled on the
-machine, for safety, so the plugin doesn't control them. Instead each gets a **Done** sensor that
-notifies you when a cycle finishes (turn on its notifications in the Home app) and a **Running**
-sensor for automations. Models that don't report a finished cycle are skipped with a note in the log.
-
-### Fixes
-- **Air purifiers** of the current Taiwanese models showed the off timer as PM2.5 and couldn't
-  change the fan speed or nanoe. Their codes are now read from each model's command list, and the
-  Home app's Auto / Manual switches the purifier's automatic speed.
-- **Dehumidifier fan speed** was reversed on most models. Speeds are now ordered by their names.
+## Fixed
+- **Settings screen:** *Load devices* failed with "not a valid selector" when the account has a
+  device whose id (GWID) isn't a MAC address. Newer models with built-in Wi-Fi use ids containing
+  `+`, `/` and `=`. These devices now appear with their status and can be included in or excluded
+  from HomeKit like any other.
+- **Local control** only matches devices whose id is a MAC address, so such an id can never be
+  mistaken for a module found on the network.
 
 **Full changelog:** see [CHANGELOG.md](CHANGELOG.md).
