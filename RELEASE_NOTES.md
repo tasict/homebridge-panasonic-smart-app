@@ -1,27 +1,29 @@
-# v2.0.1
+# v2.1.0
 
-A small update: a **project website**, a way to **support the plugin**, a tidier **settings
-screen** and a leaner npm package. No configuration changes are needed.
+Three more kinds of Panasonic appliances in the Home app, and fixes for air purifiers and
+dehumidifiers whose models number their features differently. No configuration changes are needed.
 
 ## Highlights
 
-### A website for the plugin
-[tasict.github.io/homebridge-panasonic-smart-app](https://tasict.github.io/homebridge-panasonic-smart-app/)
-explains what each device gets in the Home app, how local control works and how to set it up, in
-English, Traditional Chinese and Japanese. It is also the plugin's homepage in the Homebridge UI.
+### Heat exchangers (全熱交換器)
+Heat exchangers such as the FY-ZY series appear as a fan: power and fan speed (with Auto/Manual on
+models that have an automatic speed), a switch for each ventilation mode, and indoor and outdoor
+temperature on models that report them.
 
-### Support the plugin
-The plugin stays free, with no ads and no paid version. If it keeps your home comfortable, you
-can now [buy me a boba](https://tasict.bobaboba.me) (paid by card, no PayPal account needed) or
-[tip with PayPal](https://paypal.me/tasict). The links sit quietly at the bottom of the plugin
-settings, and in the Homebridge UI's donate link, the README and GitHub's Sponsor button.
+### Smart switches (智慧開關)
+Each circuit of a smart switch such as the F540107 / F540207 / F540307 is its own switch. Use
+*Display As* in the Home app to show a circuit as a light or a fan.
 
-### Settings screen fixes
-The **In HomeKit** switch and the *Not supported* badge render correctly on current Homebridge UI
-versions, device icons no longer depend on an icon font, long device names no longer squeeze the card, and secondary text
-stays readable in dark mode.
+### Know when the laundry is done
+Panasonic washers and dryers only accept remote commands after Wi-Fi control is enabled on the
+machine, for safety, so the plugin doesn't control them. Instead each gets a **Done** sensor that
+notifies you when a cycle finishes (turn on its notifications in the Home app) and a **Running**
+sensor for automations. Models that don't report a finished cycle are skipped with a note in the log.
 
-### Leaner npm package
-The package now contains only what the plugin needs to run.
+### Fixes
+- **Air purifiers** of the current Taiwanese models showed the off timer as PM2.5 and couldn't
+  change the fan speed or nanoe. Their codes are now read from each model's command list, and the
+  Home app's Auto / Manual switches the purifier's automatic speed.
+- **Dehumidifier fan speed** was reversed on most models. Speeds are now ordered by their names.
 
 **Full changelog:** see [CHANGELOG.md](CHANGELOG.md).
