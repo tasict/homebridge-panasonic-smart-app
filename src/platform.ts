@@ -12,6 +12,9 @@ import SmartAppApi from './smart-app';
 import DehumidifierAccessory from './accessories/dehumidifier';
 import ClimateAccessory from './accessories/climate';
 import AirPurifierAccessory from './accessories/airpurifier';
+import ErvAccessory from './accessories/erv';
+import SmartSwitchAccessory from './accessories/smart-switch';
+import LaundryAccessory, { resolveLaundryStatus } from './accessories/laundry';
 
 import PanasonicPlatformLogger from './logger';
 import { PanasonicAccessoryContext, PanasonicPlatformConfig, SmartAppDevice } from './types';
@@ -22,11 +25,15 @@ import {
   PLUGIN_NAME,
 } from './settings';
 
+// Smart App DeviceType values (equal to the TaiSEIA SA type ids).
 enum SupportDeviceType {
   Climate = '1',
   WashMachine = '3',
   Dehumidifier = '4',
-  AirPurifier = '8'
+  Dryer = '6',
+  AirPurifier = '8',
+  HeatExchanger = '14',
+  SmartSwitch = '17',
 }
 
 
@@ -174,12 +181,13 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
       case SupportDeviceType.Dehumidifier:
       case SupportDeviceType.Climate:
       case SupportDeviceType.AirPurifier:
-
-
+      case SupportDeviceType.HeatExchanger:
+      case SupportDeviceType.SmartSwitch:
+      case SupportDeviceType.WashMachine:
+      case SupportDeviceType.Dryer:
         return true;
 
       default:
-      case SupportDeviceType.WashMachine:
         return false;
     }
 
@@ -214,6 +222,17 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
         // Check if the device is supported
         if (!this.isSupportedDevice(device.DeviceType)) {
           this.log.info(`Skipping unsupport device '${device.NickName}' with ${device.DeviceType}`);
+          continue;
+        }
+
+        // A washer or dryer is only useful if its model reports when a cycle
+        // is done; without that its sensors could never change.
+        if ((device.DeviceType === SupportDeviceType.WashMachine
+          || device.DeviceType === SupportDeviceType.Dryer)
+          && resolveLaundryStatus(this.smartApp, device) === undefined) {
+          this.log.info(`Skipping '${device.NickName}' (${device.Model}): its model doesn't `
+            + 'report when a cycle is done. Turn on debug mode and report the CommandList '
+            + 'in a GitHub issue to get it supported.');
           continue;
         }
 
@@ -374,6 +393,17 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
         break;
       case SupportDeviceType.AirPurifier:
         handler = new AirPurifierAccessory(platform, accessory);
+        break;
+      case SupportDeviceType.HeatExchanger:
+        handler = new ErvAccessory(platform, accessory);
+        break;
+      case SupportDeviceType.SmartSwitch:
+        handler = new SmartSwitchAccessory(platform, accessory);
+        break;
+      case SupportDeviceType.WashMachine:
+      case SupportDeviceType.Dryer:
+        handler = new LaundryAccessory(
+          platform, accessory, deviceType === SupportDeviceType.Dryer);
         break;
       default:
         this.log.info(`Skipping unsupported deviceType: '${deviceType}' `);

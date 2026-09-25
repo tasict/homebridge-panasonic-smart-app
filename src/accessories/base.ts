@@ -7,15 +7,19 @@ import {
 import { SECONDS_BETWEEN_REQUEST } from '../const';
 import { TransientApiError } from '../exceptions';
 import { PanasonicAccessoryContext, SmartAppDevice, SmartAppDeviceInfo } from '../types';
+import {
+  FanLevels,
+  fanLevelsFromCommand,
+  fanLevelToPercent,
+  isEnum,
+  normalizeCommandType,
+  percentToFanLevel,
+} from './command-helpers';
 
-// Fan speed enum shared by the air purifier and the dehumidifier
-// (identical values on both device types).
-export enum FanSpeedMode {
-  Auto = 0,
-  Fast = 1,
-  Normal = 2,
-  Silent = 3,
-}
+// Fan speeds assumed when a device's CommandList doesn't describe them: the
+// enum of the first dehumidifier the plugin supported (0 auto, 1 fast,
+// 2 normal, 3 silent), slowest step first.
+const LEGACY_FAN_LEVELS: FanLevels = { auto: '0', steps: ['3', '2', '1'] };
 
 /**
  * Shared behaviour for all Panasonic accessories: accessory information,
@@ -28,8 +32,10 @@ export default abstract class BaseAccessory {
   // Power ('0x00') is common to every supported Smart App device type.
   protected static readonly PowerCommandType = '0x00';
 
-  // Fan mode ('0x0E') is common to the air purifier and the dehumidifier.
-  protected static readonly FanModeCommandType = '0x0E';
+  // Fan speed command and its levels. Defaults to the dehumidifier's '0x0E';
+  // subclasses call useFanCommand() to resolve theirs from the CommandList.
+  protected fanCommandType = '0x0E';
+  protected fanLevels: FanLevels = LEGACY_FAN_LEVELS;
 
   // Used to stagger the polling of accessories created back-to-back during
   // discovery, so they don't all enqueue their polls on the same tick.
@@ -155,6 +161,7 @@ export default abstract class BaseAccessory {
       const deviceStatus = await this.platform.smartApp.fetchDeviceInfo(
         this.accessory.context.device,
         this.statusCommandTypes,
+        this.readsStatusLocally,
       );
 
       // null: the poll was dropped for a global reason (full queue,
@@ -180,7 +187,10 @@ export default abstract class BaseAccessory {
       // response is missing the Power status - unless the accessory is
       // currently marked Not Responding, where any real value must replace
       // the error state or it would stick forever despite successful polls.
-      if (deviceStatus[BaseAccessory.PowerCommandType] !== undefined
+      if (!this.reflectsPowerOnPrimaryService) {
+        // The subclass shows its state (and clears Not Responding) itself.
+        this._markedNotResponding = false;
+      } else if (deviceStatus[BaseAccessory.PowerCommandType] !== undefined
         || this._markedNotResponding) {
         this.primaryService.updateCharacteristic(
           this.platform.Characteristic.Active,
@@ -228,10 +238,26 @@ export default abstract class BaseAccessory {
     ) - 1;
 
     this._markedNotResponding = true;
-    this.primaryService.updateCharacteristic(
-      this.platform.Characteristic.Active,
-      new Error('Exception occurred in refreshDeviceStatus()'),
-    );
+    this.showNotResponding(new Error('Exception occurred in refreshDeviceStatus()'));
+  }
+
+  /**
+   * Whether the primary service has an Active characteristic that mirrors the
+   * device's Power ('0x00'). Accessories without one (e.g. the smart switch,
+   * whose circuits are Switch services) return false and show power themselves.
+   */
+  protected get reflectsPowerOnPrimaryService(): boolean {
+    return true;
+  }
+
+  /** Whether status polls may use the local (LAN) path when the module is reachable. */
+  protected get readsStatusLocally(): boolean {
+    return true;
+  }
+
+  /** Marks the accessory 'Not Responding' in the Home app. */
+  protected showNotResponding(error: Error) {
+    this.primaryService.updateCharacteristic(this.platform.Characteristic.Active, error);
   }
 
   protected getDeviceInfoNumber(commandType: string, defaultValue: number | undefined = 0): number {
@@ -270,6 +296,7 @@ export default abstract class BaseAccessory {
     device: SmartAppDevice,
     command: string,
     value: string,
+    subDeviceId?: number,
   ): Promise<boolean> {
     try {
       // Only send non-empty payloads to prevent a '500 Internal Server Error'
@@ -277,7 +304,7 @@ export default abstract class BaseAccessory {
         `Sending command '${command}' with value '${value}' `
         + `to device '${this.accessory.displayName}'`);
 
-      await this.platform.smartApp.doCommand(device, command, value);
+      await this.platform.smartApp.doCommand(device, command, value, subDeviceId);
 
       this._consecutiveRefreshFailures = 0;
       this._intervalsToSkip = 0;
@@ -324,50 +351,122 @@ export default abstract class BaseAccessory {
       : this.platform.Characteristic.Active.INACTIVE;
   }
 
-  protected fanSpeedModeToPercent(mode: number): number {
-    switch (mode) {
-      case FanSpeedMode.Fast:
-        return 100;
-      case FanSpeedMode.Normal:
-        return 50;
-      case FanSpeedMode.Silent:
-        return 20;
-      case FanSpeedMode.Auto:
-      default:
-        return 0;
+  /**
+   * Uses the first of `candidates` the device's CommandList describes as a
+   * fan-speed enum (or `fallback` with the legacy levels when it describes
+   * none), with its speeds ordered from the enum's names. Returns whether the
+   * device has a fan speed at all.
+   */
+  protected useFanCommand(candidates: string[], fallback?: string): boolean {
+    for (const candidate of candidates) {
+      const levels = fanLevelsFromCommand(
+        this.platform.smartApp.getCommandList(this.accessory.context.device, candidate));
+      if (levels !== undefined) {
+        this.fanCommandType = normalizeCommandType(candidate);
+        this.fanLevels = levels;
+        return true;
+      }
     }
+    if (fallback === undefined) {
+      return false;
+    }
+    this.fanCommandType = normalizeCommandType(fallback);
+    this.fanLevels = LEGACY_FAN_LEVELS;
+    return true;
   }
 
-  protected percentToFanSpeedMode(value: number): FanSpeedMode {
-    if (value >= 75) {
-      return FanSpeedMode.Fast;
-    }
-    if (value >= 25) {
-      return FanSpeedMode.Normal;
-    }
-    if (value > 0) {
-      return FanSpeedMode.Silent;
-    }
-    return FanSpeedMode.Auto;
+  /** The current fan speed as a percentage; auto (and unknown values) read as 0. */
+  protected fanPercent(): number {
+    const value = this.platform.smartApp.getDeviceInfo(
+      this.accessory.context.device, this.fanCommandType, '');
+    return fanLevelToPercent(this.fanLevels, value) ?? 0;
+  }
+
+  /** Whether the fan is currently on its automatic speed. */
+  protected isFanAuto(): boolean {
+    return this.fanLevels.auto !== undefined
+      && this.platform.smartApp.getDeviceInfo(
+        this.accessory.context.device, this.fanCommandType, '') === this.fanLevels.auto;
+  }
+
+  /** Sends a manual step for a percentage above 0, otherwise auto (or the slowest step). */
+  protected sendFanPercent(percent: number) {
+    const level = percent > 0
+      ? percentToFanLevel(this.fanLevels, percent)
+      : this.fanLevels.auto ?? this.fanLevels.steps[0];
+    this.sendCommandToDevice(this.accessory.context.device, this.fanCommandType, level);
+    return fanLevelToPercent(this.fanLevels, level) ?? 0;
   }
 
   async setRotationSpeed(value: CharacteristicValue) {
     this.platform.log.debug(
       `Accessory: setRotationSpeed() for device '${this.accessory.displayName}'`);
 
-    const speedMode = this.percentToFanSpeedMode(+value);
+    const percent = this.sendFanPercent(+value);
 
-    this.sendCommandToDevice(
-      this.accessory.context.device, BaseAccessory.FanModeCommandType, speedMode.toString());
-
-    this.primaryService.getCharacteristic(this.platform.Characteristic.RotationSpeed)
-      .updateValue(this.fanSpeedModeToPercent(speedMode));
+    // Snap the slider to the speed actually sent. HAP stores the requested
+    // value once this setter returns, so the snap has to come after that.
+    setImmediate(() => this.primaryService
+      .getCharacteristic(this.platform.Characteristic.RotationSpeed).updateValue(percent));
   }
 
   async getRotationSpeed(): Promise<CharacteristicValue> {
+    return this.fanPercent();
+  }
 
-    const value: number = this.getDeviceInfoNumber(BaseAccessory.FanModeCommandType);
-    return this.fanSpeedModeToPercent(value);
+  /**
+   * Creates (or restores) one Switch per value of an enum command, named after
+   * the value (e.g. each dehumidifier mode). Turning one on selects that value;
+   * turning it off snaps the switches back to the current value, since a mode
+   * can only be switched to, not turned off. Subtypes are 'Mode_<value>'.
+   */
+  protected setupModeSwitches(commandType: string) {
+    const command = this.platform.smartApp.getCommandList(
+      this.accessory.context.device, commandType);
+    if (command === undefined || !isEnum(command)) {
+      return;
+    }
+
+    for (const param of command.Parameters) {
+      const name = String(param[0]);
+      const value = String(param[1]);
+      const subtype = 'Mode_' + value;
+
+      this.platform.log.debug(`Accessory: Mode Switch for device '${name}'`);
+
+      const service = this.accessory.getServiceById(this.platform.Service.Switch, subtype)
+        || this.accessory.addService(this.platform.Service.Switch, name, subtype);
+
+      service.setCharacteristic(this.platform.Characteristic.Name, name);
+      service.addOptionalCharacteristic(this.platform.Characteristic.ConfiguredName);
+      service.setCharacteristic(this.platform.Characteristic.ConfiguredName, name);
+
+      service.getCharacteristic(this.platform.Characteristic.On)
+        .onSet((on: CharacteristicValue) => {
+          this.platform.log.info(
+            `Setting ${this.accessory.displayName} ${name} to ${on ? 'on' : 'off'}`);
+
+          if (on) {
+            this.sendCommandToDevice(this.accessory.context.device, commandType, value);
+            this.updateModeSwitches(commandType, +value);
+          } else {
+            this.updateModeSwitches(commandType);
+          }
+        })
+        .onGet(() => this.getDeviceInfoNumber(commandType) === +value);
+
+      this.services[subtype] = service;
+    }
+  }
+
+  /** Shows `mode` (by default the cached one) as the only mode switch that is on. */
+  protected updateModeSwitches(commandType: string, mode = this.getDeviceInfoNumber(commandType)) {
+    const command = this.platform.smartApp.getCommandList(
+      this.accessory.context.device, commandType);
+    for (const param of command?.Parameters ?? []) {
+      this.services['Mode_' + param[1]]?.updateCharacteristic(
+        this.platform.Characteristic.On, mode === +param[1]);
+    }
   }
 
   /**

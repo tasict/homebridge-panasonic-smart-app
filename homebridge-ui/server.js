@@ -12,7 +12,9 @@ const REQUEST_TIMEOUT = 20000;
 const TOKEN_FILE = 'panasonic-smart-app-session.json';
 
 // Device types this plugin can expose to HomeKit (see SupportDeviceType).
-const SUPPORTED_TYPES = new Set(['1', '4', '8']);
+// Washers and dryers only when their model reports a finished cycle.
+const SUPPORTED_TYPES = new Set(['1', '3', '4', '6', '8', '14', '17']);
+const LAUNDRY_TYPES = new Set(['3', '6']);
 
 const DEVICE_TYPE_NAMES = {
   '1': 'Air Conditioner',
@@ -23,14 +25,65 @@ const DEVICE_TYPE_NAMES = {
   '6': 'Dryer',
   '7': 'Heat Pump Water Heater',
   '8': 'Air Purifier',
+  '14': 'Heat Exchanger',
   '15': 'Fan',
+  '17': 'Smart Switch',
+  '23': 'Weight Plate',
 };
 
-// Status codes read per device type for the card (power is common to all).
-const STATUS_CODES = {
-  '1': ['0x00', '0x01', '0x04', '0x03'],
-  '4': ['0x00', '0x07', '0x04', '0x0A'],
-  '8': ['0x00', '0x53'],
+// Kept in sync with src/accessories: codes resolved from the model's
+// CommandList by name, as the plugin does.
+const FINISHED_NAME = /終了|完了|完成|結束/;
+const RUNNING_NAME = /(動作|運轉|運行|作動|洗衣|洗濯|乾燥|烘乾|烘衣)中/;
+const sameCode = (a, b) => parseInt(a, 16) === parseInt(b, 16);
+const key = (code) => '0x' + parseInt(code, 16).toString(16).toUpperCase().padStart(2, '0');
+const isEnum = (c) => c.ParameterType === 'enum' && Array.isArray(c.Parameters) && c.Parameters.length > 0;
+const isReading = (c) => !c.ParameterType && !(c.Parameters || []).length;
+
+function laundryStatus(commands) {
+  const withFinished = commands.filter((c) => isEnum(c)
+    && c.Parameters.some((p) => FINISHED_NAME.test(String(p[0]))));
+  const preferred = ['0x50', '0x03', '0x01'];
+  const rank = (c) => {
+    const i = preferred.findIndex((code) => sameCode(code, c.CommandType));
+    return i < 0 ? preferred.length : i;
+  };
+  withFinished.sort((a, b) => rank(a) - rank(b));
+  return withFinished[0];
+}
+
+// Status codes read for a device's card, and how to name what they mean.
+function statusPlan(device, commands) {
+  const byName = (re, accept) => commands.find((c) => re.test(c.CommandName || '') && accept(c));
+  switch (String(device.DeviceType)) {
+    case '1':
+      return { codes: ['0x00', '0x01', '0x04', '0x03'] };
+    case '4':
+      return { codes: ['0x00', '0x07', '0x04', '0x0A'] };
+    case '8': {
+      const pm = byName(/PM\s*2\.?5/i, (c) => isReading(c) && !/level/i.test(c.CommandName));
+      const pm25 = key(pm ? pm.CommandType : '0x53');
+      return { codes: ['0x00', pm25], pm25 };
+    }
+    case '14': {
+      const mode = byName(/換氣|模式/, isEnum);
+      return { codes: ['0x00'].concat(mode ? [key(mode.CommandType)] : []), mode };
+    }
+    case '17':
+      return { codes: ['0x70', '0x00'] };
+    case '3':
+    case '6': {
+      const status = laundryStatus(commands);
+      return { codes: status ? [key(status.CommandType)] : [], status };
+    }
+    default:
+      return { codes: ['0x00'] };
+  }
+}
+
+const labelOf = (command, value) => {
+  const param = ((command && command.Parameters) || []).find((p) => String(p[1]) === String(value));
+  return param ? String(param[0]) : undefined;
 };
 
 class PanasonicUiServer extends HomebridgePluginUiServer {
@@ -38,6 +91,7 @@ class PanasonicUiServer extends HomebridgePluginUiServer {
     super();
     this._cpToken = '';
     this._devices = [];
+    this._commands = {};
 
     this.onRequest('/devices', this.handleDevices.bind(this));
     this.onRequest('/statuses', this.handleStatuses.bind(this));
@@ -117,7 +171,15 @@ class PanasonicUiServer extends HomebridgePluginUiServer {
         'cptoken': cpToken,
       },
     });
+    this._commands = {};
+    for (const entry of response.data.CommandList || []) {
+      this._commands[entry.ModelType] = ((entry.JSON || [])[0] || {}).list || [];
+    }
     return response.data.GwList || [];
+  }
+
+  commandsFor(device) {
+    return this._commands[device.ModelType] || [];
   }
 
   async handleDevices(payload) {
@@ -155,7 +217,10 @@ class PanasonicUiServer extends HomebridgePluginUiServer {
       model: device.Model,
       deviceType: device.DeviceType,
       typeName: DEVICE_TYPE_NAMES[device.DeviceType] || ('Type ' + device.DeviceType),
-      supported: SUPPORTED_TYPES.has(String(device.DeviceType)),
+      supported: SUPPORTED_TYPES.has(String(device.DeviceType))
+        && (!LAUNDRY_TYPES.has(String(device.DeviceType))
+          || laundryStatus(this.commandsFor(device)) !== undefined),
+      circuits: (device.Devices || []).length,
     }));
   }
 
@@ -168,9 +233,27 @@ class PanasonicUiServer extends HomebridgePluginUiServer {
     // Read sequentially with a gap so the UI doesn't trip the account's rate
     // limit (the running plugin is polling the same API).
     for (const device of this._devices) {
-      const codes = STATUS_CODES[String(device.DeviceType)] || ['0x00'];
+      const plan = statusPlan(device, this.commandsFor(device));
+      if (plan.codes.length === 0) {
+        statuses[device.GWID] = null;
+        continue;
+      }
       try {
-        statuses[device.GWID] = await this.fetchDeviceInfo(device, codes);
+        const info = await this.fetchDeviceInfo(device, plan.codes);
+        // Name what the model-specific codes mean, so the page stays generic.
+        if (plan.pm25) {
+          info.pm25 = info[plan.pm25];
+        }
+        if (plan.mode) {
+          info.modeName = labelOf(plan.mode, info[key(plan.mode.CommandType)]);
+        }
+        if (plan.status) {
+          const value = info[key(plan.status.CommandType)];
+          info.laundry = labelOf(plan.status, value);
+          info.laundryDone = FINISHED_NAME.test(info.laundry || '');
+          info.laundryRunning = RUNNING_NAME.test(info.laundry || '');
+        }
+        statuses[device.GWID] = info;
       } catch {
         statuses[device.GWID] = null;
       }
@@ -182,7 +265,7 @@ class PanasonicUiServer extends HomebridgePluginUiServer {
   async fetchDeviceInfo(device, codes) {
     const data = [{
       DeviceID: 1,
-      CommandTypes: codes.map(code => ({ CommandType: code })),
+      CommandTypes: codes.map(code => ({ CommandType: key(code) })),
     }];
     const response = await axios.request({
       method: 'post',

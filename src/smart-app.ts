@@ -8,6 +8,7 @@ import {
   SmartAppDevice,
   SmartAppDeviceInfo,
   PanasonicPlatformConfig,
+  SmartAppCommand,
   SmartAppCommandList,
   LocalDeviceOverride,
   LocalDeviceMetadata,
@@ -42,6 +43,7 @@ import {
 import { TaiSeiaClient, TaiSeiaCommandRejected, statusKey } from './taiseia';
 import { ssdpSearch, scanForOpenPort, localSubnetHosts } from './local-discovery';
 import { TokenStore } from './token-store';
+import { sameCode } from './accessories/command-helpers';
 
 interface QueuedRequest {
   config: AxiosRequestConfig;
@@ -654,6 +656,14 @@ export default class SmartAppApi {
       }
     }
 
+    // A module that answers but reports none of the requested services (e.g. a
+    // device type whose registers differ locally) must not starve the accessory
+    // of status: let the caller fall back to the cloud for this read.
+    if (options.length > 0 && Object.keys(info).length === 0) {
+      throw new TaiSeiaCommandRejected(
+        `None of the requested services (${options.join(', ')}) were reported locally.`);
+    }
+
     this._devicesInfo[device.GWID] = info;
     if (this.log.debugMode) {
       this.log.debug(`Smart App - fetchDeviceInfoLocal() for '${device.NickName}' `
@@ -735,12 +745,13 @@ export default class SmartAppApi {
   async fetchDeviceInfo(
     device: SmartAppDevice,
     options: string[] | undefined = ['0x00', '0x01', '0x03', '0x04'],
+    allowLocal = true,
   ): Promise<SmartAppDeviceInfo | null | undefined> {
     this.log.debug(`Smart App: fetchDeviceInfo() for device GUID '${device.NickName}'`);
 
     // Prefer the LAN: a local ALL_STATES read avoids the cloud (and its rate
     // limit) entirely. Any failure falls through to the cloud path below.
-    const localClient = this.localClientFor(device);
+    const localClient = allowLocal ? this.localClientFor(device) : undefined;
     if (localClient) {
       try {
         return await this.fetchDeviceInfoLocal(device, options, localClient);
@@ -809,12 +820,24 @@ export default class SmartAppApi {
       });
   }
 
-  async doCommand(device: SmartAppDevice, command: string, value: string): Promise<void> {
-    this.log.debug(`Smart App: doCommand() for '${device.NickName}' : '${command}' : '${value}'`);
+  /**
+   * Sends a command. `subDeviceId` addresses one sub-device of a multi-unit
+   * appliance (e.g. one circuit of a smart switch, listed in the device's
+   * `Devices`); such commands always go through the cloud, since the local
+   * TaiSEIA PDU has no field for it.
+   */
+  async doCommand(
+    device: SmartAppDevice,
+    command: string,
+    value: string,
+    subDeviceId?: number,
+  ): Promise<void> {
+    this.log.debug(`Smart App: doCommand() for '${device.NickName}' : '${command}' : '${value}'`
+      + (subDeviceId !== undefined ? ` (DeviceID ${subDeviceId})` : ''));
 
     // Prefer the LAN. A refusal (unsupported command) or transport failure
     // falls through to the cloud path below.
-    const localClient = this.localClientFor(device);
+    const localClient = subDeviceId === undefined ? this.localClientFor(device) : undefined;
     if (localClient) {
       try {
         await this.doCommandLocal(device, command, value, localClient);
@@ -829,7 +852,7 @@ export default class SmartAppApi {
         + 'Check your credentials and restart Homebridge.'));
     }
 
-    const payload = { 'DeviceID': 1, 'CommandType': command, 'Value': value };
+    const payload = { 'DeviceID': subDeviceId ?? 1, 'CommandType': command, 'Value': value };
 
     // User commands take the priority queue so they are never stuck behind
     // a backlog of status polls.
@@ -849,7 +872,11 @@ export default class SmartAppApi {
       .then((response) => {
         this.log.debug('Smart App - doCommand(): Success');
         this.log.debug(response.data);
-        this.setDeviceInfo(device, command, value);
+        // A sub-device's state isn't cached under its own key; its accessory
+        // updates the cache itself.
+        if (subDeviceId === undefined) {
+          this.setDeviceInfo(device, command, value);
+        }
       })
       .catch((error: AxiosError) => {
         this.log.debug('Smart App - doCommand(): Error');
@@ -891,27 +918,18 @@ export default class SmartAppApi {
   }
 
 
-  public getCommandList(device: SmartAppDevice, commandType: string) {
+  /**
+   * All commands the device's model advertises in its CommandList, or an empty
+   * list when the model has none. CommandList codes are not consistently
+   * cased ('0x0f' next to '0x0D'); compare them with sameCode().
+   */
+  public getCommands(device: SmartAppDevice): SmartAppCommand[] {
+    return this._commands[device.ModelType]?.JSON?.[0]?.list ?? [];
+  }
 
-    try {
-
-      if (this._commands[device.ModelType] !== undefined) {
-
-        for (const command of this._commands[device.ModelType].JSON[0].list) {
-          if (commandType === command.CommandType) {
-            return command;
-          }
-        }
-
-      }
-
-
-    } catch (e) {
-      this.log.error(e);
-    }
-
-    return undefined;
-
+  public getCommandList(device: SmartAppDevice, commandType: string): SmartAppCommand | undefined {
+    return this.getCommands(device).find(
+      (command) => sameCode(command.CommandType, commandType));
   }
 
   public getCommandName(
@@ -919,25 +937,7 @@ export default class SmartAppApi {
     commandType: string,
     defaultValue: string | undefined = ''): string {
 
-    try {
-
-      if (this._commands[device.ModelType] !== undefined) {
-
-        for (const command of this._commands[device.ModelType].JSON[0].list) {
-          if (commandType === command.CommandType) {
-            return command.CommandName;
-          }
-        }
-
-      }
-
-
-    } catch (e) {
-      this.log.error(e);
-    }
-
-    return defaultValue;
-
+    return this.getCommandList(device, commandType)?.CommandName ?? defaultValue;
   }
 
   /**

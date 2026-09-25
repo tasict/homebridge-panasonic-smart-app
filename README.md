@@ -14,7 +14,7 @@
   <b>Website: <a href="https://tasict.github.io/homebridge-panasonic-smart-app/">tasict.github.io/homebridge-panasonic-smart-app</a></b> (English, 繁體中文, 日本語)
 </p>
 
-`homebridge-panasonic-smart-app` is a dynamic platform plugin for [Homebridge](https://homebridge.io) that provides HomeKit support for devices registered in the Panasonic (Taiwan) Smart App, including air conditioners, dehumidifiers, and air purifiers.
+`homebridge-panasonic-smart-app` is a dynamic platform plugin for [Homebridge](https://homebridge.io) that provides HomeKit support for devices registered in the Panasonic (Taiwan) Smart App, including air conditioners, dehumidifiers, air purifiers, heat exchangers (ERV) and smart switches, plus cycle-done notifications from washing machines and dryers.
 
 Free and open source. If it keeps your home comfortable, you can [buy me a boba](https://tasict.bobaboba.me) (by card, no PayPal account needed) or [tip with PayPal](https://paypal.me/tasict).
 
@@ -31,9 +31,25 @@ By default every supported device on your account appears in your Home app. You 
 | --- | --- |
 | Air conditioner | Power; Cool, Heat or Auto; target temperature (16–30 °C); room temperature |
 | Dehumidifier | Power; target humidity (40–70%); current humidity; fan speed; a full-tank indicator (water level); a switch for each of the unit's own modes (for example laundry drying); switches for nanoe and the button beep |
-| Air purifier | Power; fan speed; air quality with the PM2.5 reading; a switch for nanoe |
+| Air purifier | Power; fan speed, with Auto/Manual mapped to the purifier's automatic speed; air quality with the PM2.5 reading; a switch for nanoe |
+| Heat exchanger (全熱交換器, e.g. FY-ZY) | A fan: power and fan speed (with Auto/Manual on models that have an automatic speed); a switch for each ventilation mode; indoor/outdoor temperature on models that report them |
+| Smart switch (智慧開關, e.g. F540107/F540207/F540307) | One switch per circuit. Use *Display As* in the Home app to show a circuit as a light or a fan |
+| Washing machine / dryer | Notifications only (see below): a *Done* contact sensor and a *Running* occupancy sensor |
 
-Other appliances on your account (refrigerators, washing machines and so on) are listed as *not supported* in the settings screen and are not added to HomeKit.
+Fan speeds, modes and the codes of model-specific features are read from each model's command list, so models that number their speeds differently behave the same in the Home app.
+
+Other appliances on your account (refrigerators, weight plates and so on) are listed as *not supported* in the settings screen and are not added to HomeKit.
+
+### Washing machines and dryers
+
+Panasonic washers and dryers only accept remote commands after Wi-Fi control is enabled on the machine itself, for safety, so the plugin never controls them. Instead each one gets two sensors:
+
+- **Done** (contact sensor): opens when a cycle finishes, and closes again once the machine leaves that state (lid opened, powered off or a new cycle). To be notified, open the sensor's settings in the Home app and turn on *Status and Notifications*.
+- **Running** (occupancy sensor): detected while a cycle runs, for automations.
+
+This needs the model to report its operating status (e.g. `運轉情報` with a `終了` value). Models that don't are skipped with a note in the log; please open an issue with your debug log so they can be added.
+
+Smart switch circuits are addressed individually, which only the cloud API supports, so they are always switched through the cloud.
 
 ## Smart App account
 
@@ -101,7 +117,7 @@ From v2.0.0, when a device's Panasonic Wi-Fi module (**CZ-T006 / CZ-T007**) is r
 
 ## Choosing which devices appear in HomeKit
 
-Open the plugin's settings in the Homebridge UI. Every device on your account is shown as a card with its type, model and current status. Supported devices (air conditioner, dehumidifier, air purifier) have an **In HomeKit** switch you can turn off to hide a device from HomeKit; unsupported devices are marked accordingly. Changes are saved immediately and take effect after you restart Homebridge. Newly added devices are included by default.
+Open the plugin's settings in the Homebridge UI. Every device on your account is shown as a card with its type, model and current status. Supported devices have an **In HomeKit** switch you can turn off to hide a device from HomeKit; unsupported devices are marked accordingly. Changes are saved immediately and take effect after you restart Homebridge. Newly added devices are included by default.
 
 ## Troubleshooting
 

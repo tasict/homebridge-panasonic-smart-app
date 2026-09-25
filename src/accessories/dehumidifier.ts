@@ -1,9 +1,7 @@
 import { Service, PlatformAccessory, CharacteristicValue } from 'homebridge';
 import PanasonicPlatform from '../platform';
 import BaseAccessory from './base';
-import {
-  PanasonicAccessoryContext, SmartAppCommand, SmartAppParameter, SmartAppDeviceInfo,
-} from '../types';
+import { PanasonicAccessoryContext, SmartAppDeviceInfo } from '../types';
 
 /*
 DEVICE_STATUS_CODES = {
@@ -135,12 +133,15 @@ export default class DehumidifierAccessory extends BaseAccessory {
       .onSet(this.setRelativeHumidityDehumidifierThreshold.bind(this))
       .onGet(this.getRelativeHumidityDehumidifierThreshold.bind(this));
 
+    // Speeds come from the model's CommandList; their enum order differs between models.
+    this.useFanCommand([DehumidifierCommandType.FanMode], DehumidifierCommandType.FanMode);
+
     this.services['HumidifierDehumidifier']
       .getCharacteristic(this.platform.Characteristic.RotationSpeed)
       .setProps({
         minValue: 0,
         maxValue: 100,
-        minStep: 25,
+        minStep: 1,
       })
       .onSet(this.setRotationSpeed.bind(this))
       .onGet(this.getRotationSpeed.bind(this));
@@ -160,57 +161,8 @@ export default class DehumidifierAccessory extends BaseAccessory {
     this.setupToggleSwitch('NanoeSwitch', DehumidifierCommandType.Nanoe, 'NanoE');
 
     //////////
-    const smartAppCommand:SmartAppCommand | undefined
-      = this.platform.smartApp.getCommandList(
-        this.accessory.context.device, DehumidifierCommandType.Mode);
-
-    if(smartAppCommand !== undefined){
-
-      smartAppCommand.Parameters.forEach((param:SmartAppParameter) => {
-
-        const name:string = param[0] as string;
-        const subtype:string = 'Mode_' + param[1];
-
-        this.platform.log.debug(`Accessory: Mode Switch for device '${name}'`);
-
-        const serviceSwitch = this.accessory.getServiceById(this.platform.Service.Switch, subtype)
-          || this.accessory.addService(this.platform.Service.Switch, name, subtype);
-
-        serviceSwitch.setCharacteristic(this.platform.Characteristic.Name, name);
-        serviceSwitch.addOptionalCharacteristic(this.platform.Characteristic.ConfiguredName);
-        serviceSwitch.setCharacteristic(this.platform.Characteristic.ConfiguredName, name);
-
-        serviceSwitch.getCharacteristic(this.platform.Characteristic.On)
-          .onSet((value: CharacteristicValue) => {
-
-            this.platform.log.info(
-              `Setting ${this.accessory.displayName} ${name} to ${value ? 'on' : 'off'}`);
-
-            if(value){
-              this.sendCommandToDevice(
-                this.accessory.context.device, DehumidifierCommandType.Mode, param[1] as string);
-              this.updateSwitchMode(+param[1]);
-            } else {
-              // A mode can only be switched, not turned off: snap the
-              // switches back to the current mode instead of pretending
-              // the toggled-off mode became active.
-              this.updateSwitchMode(this.getDeviceInfoNumber(DehumidifierCommandType.Mode));
-            }
-          })
-          .onGet(() => {
-            const mode:number = this.getDeviceInfoNumber(DehumidifierCommandType.Mode);
-            this.platform.log.debug(
-              `Getting ${this.accessory.displayName} ${name} `
-              + `status: '${+param[1] === mode ? 'on' : 'off'}'`);
-            return mode === +param[1];
-          });
-
-        this.services[subtype] = serviceSwitch;
-
-      });
-
-
-    }
+    // One switch per mode in the device's CommandList (e.g. laundry drying).
+    this.setupModeSwitches(DehumidifierCommandType.Mode);
 
     // Update characteristic values asynchronously instead of using onGet handlers
     this.startStatusPolling();
@@ -251,7 +203,7 @@ export default class DehumidifierAccessory extends BaseAccessory {
     if(deviceStatus[DehumidifierCommandType.FanMode] !== undefined) {
       this.services['HumidifierDehumidifier'].updateCharacteristic(
         this.platform.Characteristic.RotationSpeed,
-        this.fanSpeedModeToPercent(this.getDeviceInfoNumber(DehumidifierCommandType.FanMode)));
+        this.fanPercent());
     }
 
 
@@ -273,24 +225,8 @@ export default class DehumidifierAccessory extends BaseAccessory {
         this.getDeviceInfoNumber(DehumidifierCommandType.Nanoe) === 1);
     }
 
-    this.updateSwitchMode(this.getDeviceInfoNumber(DehumidifierCommandType.Mode));
-  }
-
-  updateSwitchMode(mode: number) {
-
-    const smartAppCommand:SmartAppCommand | undefined
-      = this.platform.smartApp.getCommandList(
-        this.accessory.context.device, DehumidifierCommandType.Mode);
-
-    if(smartAppCommand !== undefined){
-
-      smartAppCommand.Parameters.forEach((param:SmartAppParameter) => {
-
-        const subtype:string = 'Mode_' + param[1];
-        this.services[subtype]?.updateCharacteristic(
-          this.platform.Characteristic.On, mode === +param[1]);
-      });
-
+    if (deviceStatus[DehumidifierCommandType.Mode] !== undefined) {
+      this.updateModeSwitches(DehumidifierCommandType.Mode);
     }
   }
 
