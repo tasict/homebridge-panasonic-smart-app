@@ -27,6 +27,12 @@
     "node": ">=18"
   },
   "main": "dist/index.js",
+  "files": [
+    "dist",
+    "homebridge-ui",
+    "config.schema.json",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "clean": "rimraf ./dist",
     "lint": "eslint \"src/**/*.ts\" --max-warnings=0",

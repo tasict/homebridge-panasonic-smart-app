@@ -54,7 +54,7 @@
             "gwid": {
               "title": "GWID / MAC",
               "type": "string",
-              "placeholder": "B8B7F1212AAB"
+              "placeholder": "0123456789AB"
             },
             "host": {
               "title": "LAN IP Address",

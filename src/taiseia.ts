@@ -85,7 +85,7 @@ function xmlTag(xml: string, tag: string): string {
 }
 
 function macFromUdn(udn: string): string {
-  // UDN looks like `uuid:0F422ECF-...-B8B7F1212AAB`; the last segment is the MAC.
+  // UDN looks like `uuid:0F422ECF-...-0123456789AB`; the last segment is the MAC.
   const tail = udn.split('-').pop() ?? '';
   return /^[0-9A-Fa-f]{12}$/.test(tail) ? tail.toUpperCase() : '';
 }
