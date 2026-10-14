@@ -19,6 +19,7 @@ import LaundryAccessory, { resolveLaundryStatus } from './accessories/laundry';
 import PanasonicPlatformLogger from './logger';
 import { PanasonicAccessoryContext, PanasonicPlatformConfig, SmartAppDevice } from './types';
 import {
+  DISCOVERY_RETRY_DELAY,
   LOGIN_RETRY_DELAY,
   MAX_NO_OF_FAILED_LOGIN_ATTEMPTS,
   PLATFORM_NAME,
@@ -51,7 +52,8 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
   // Active accessory handlers, keyed by accessory UUID, so we can stop their polling.
   private readonly handlers = new Map<string, { dispose(): void }>();
 
-  private _loginRetryTimeout: NodeJS.Timeout | undefined;
+  // Pending login or device-discovery retry (they never overlap).
+  private _retryTimeout: NodeJS.Timeout | undefined;
   private noOfFailedLoginAttempts = 0;
 
   public readonly smartApp: SmartAppApi;
@@ -97,8 +99,8 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
 
     // Stop all timers on shutdown so we don't leak intervals or keep hitting the API.
     this.api.on(APIEvent.SHUTDOWN, () => {
-      if (this._loginRetryTimeout) {
-        clearTimeout(this._loginRetryTimeout);
+      if (this._retryTimeout) {
+        clearTimeout(this._retryTimeout);
       }
       this.smartApp.dispose();
       this.handlers.forEach(handler => handler.dispose());
@@ -144,7 +146,7 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
             + 'Restart Homebridge when you change your config.',
           );
 
-          this._loginRetryTimeout = setTimeout(
+          this._retryTimeout = setTimeout(
             this.loginAndDiscoverDevices.bind(this),
             LOGIN_RETRY_DELAY,
           );
@@ -204,9 +206,20 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
   async discoverDevices() {
     this.log.info('Discovering devices on Smart App.');
 
+    let smartAppDevices: SmartAppDevice[];
     try {
-      const smartAppDevices = await this.smartApp.fetchDevices();
+      smartAppDevices = await this.smartApp.fetchDevices();
+    } catch (error) {
+      // Without the device list the cached accessories get no handlers, so
+      // HomeKit can't control them - keep retrying instead of waiting for a
+      // restart. An expired token has already triggered a re-login by now.
+      this.log.error(`${error instanceof Error ? error.message : String(error)} `
+        + `Retrying in ${DISCOVERY_RETRY_DELAY / 1000} seconds.`);
+      this._retryTimeout = setTimeout(this.discoverDevices.bind(this), DISCOVERY_RETRY_DELAY);
+      return;
+    }
 
+    try {
       // Locate LAN modules in the background so reads/commands can prefer the
       // local path. It's non-blocking: accessories start on the cloud and
       // switch to local once discovery finishes.

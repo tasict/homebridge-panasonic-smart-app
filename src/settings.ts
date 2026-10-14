@@ -9,6 +9,11 @@ export const LOGIN_RETRY_DELAY = 360 * 1000;
 
 export const MAX_NO_OF_FAILED_LOGIN_ATTEMPTS = 5;
 
+// A failed startup device-list fetch is retried after this delay (until it
+// succeeds), since cached accessories stay uncontrollable until then.
+// 60 sec = 1 min
+export const DISCOVERY_RETRY_DELAY = 60 * 1000;
+
 // Used to renew the token periodically. Only a safety measure, since we are handling
 // network errors dynamically and re-issuing a login upon a 401 Unauthorized error.
 // 604,800 sec = 7 days
