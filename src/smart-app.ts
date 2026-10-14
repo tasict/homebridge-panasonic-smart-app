@@ -43,6 +43,7 @@ import {
 import { TaiSeiaClient, TaiSeiaCommandRejected, statusKey } from './taiseia';
 import { ssdpSearch, scanForOpenPort, localSubnetHosts } from './local-discovery';
 import { TokenStore } from './token-store';
+import { DeviceListStore } from './device-list-store';
 import { sameCode } from './accessories/command-helpers';
 
 interface QueuedRequest {
@@ -92,6 +93,11 @@ export default class SmartAppApi {
   // Persists the session token so a restart can reuse it instead of logging in
   // with the email/password again.
   private readonly _tokenStore: TokenStore;
+  // Persists the last successful GwList + CommandList so discovery can still
+  // proceed when the cloud device-list call fails transiently.
+  private readonly _deviceListStore: DeviceListStore;
+  // True when the most recent fetchDevices() result came from disk cache.
+  private _deviceListFromCache = false;
 
   constructor(
     private readonly config: PanasonicPlatformConfig,
@@ -110,6 +116,12 @@ export default class SmartAppApi {
       ? config.localDevices : [];
 
     this._tokenStore = new TokenStore(storagePath, log);
+    this._deviceListStore = new DeviceListStore(storagePath, log);
+  }
+
+  /** Whether the last fetchDevices() served a previously cached list. */
+  get deviceListFromCache(): boolean {
+    return this._deviceListFromCache;
   }
 
   private delay(ms: number): Promise<void> {
@@ -467,6 +479,7 @@ export default class SmartAppApi {
     this.log.debug('Smart App: fetchDevices()');
 
     this._devices = [];
+    this._deviceListFromCache = false;
 
     if (!this._cp_token) {
       return Promise.reject(new Error('No auth token available (login probably failed). '
@@ -488,6 +501,8 @@ export default class SmartAppApi {
         this.log.debug('Smart App - fetchDevices(): Success');
         this.log.debug(JSON.stringify(response.data));
 
+        this._commands = {};
+
         for (const device of response.data.GwList) {
           this.log.debug(device.GWID);
           this._devices.push(device);
@@ -501,17 +516,54 @@ export default class SmartAppApi {
         if (this._devices.length === 0) {
           this.log.info('No devices found. '
             + 'Check whether you have added at least one device to your Smart App account.');
+        } else {
+          this._deviceListStore.save({
+            email: this.config.email,
+            devices: this._devices,
+            commands: this._commands,
+            savedAt: Date.now(),
+          });
         }
-
-
 
         return this._devices;
       })
       .catch((error: AxiosError) => {
         this.log.debug('Smart App - fetchDevices(): Error');
         this.handleNetworkRequestError(error);
+
+        if (this.restoreDevicesFromCache()) {
+          return this._devices;
+        }
+
         return Promise.reject(new Error('Fetching the device list failed.'));
       });
+  }
+
+  /**
+   * Loads the last successful device/command list from disk into memory.
+   * Returns true when a usable cache was restored.
+   */
+  private restoreDevicesFromCache(): boolean {
+    const cached = this._deviceListStore.load(this.config.email);
+    if (!cached) {
+      return false;
+    }
+
+    this._devices = cached.devices;
+    this._commands = cached.commands;
+    this._deviceListFromCache = true;
+
+    const ageHours = cached.savedAt
+      ? Math.round((Date.now() - cached.savedAt) / (60 * 60 * 1000))
+      : undefined;
+    const ageText = ageHours !== undefined ? ` (${ageHours}h old)` : '';
+
+    this.log.info(
+      `Fetching the device list failed - using the last saved list${ageText} `
+      + `(${this._devices.length} device(s)). Cached accessory cleanup is skipped `
+      + 'until the live list succeeds again.',
+    );
+    return true;
   }
 
   /**

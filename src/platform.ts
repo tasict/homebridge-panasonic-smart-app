@@ -303,13 +303,20 @@ export default class PanasonicPlatform implements DynamicPlatformPlugin {
       // At this point, we set up all devices from Smart App, but we did not unregister
       // cached devices that do not exist on the Smart App account anymore.
       // Guard: if the server returned an empty device list (e.g. a temporary
-      // glitch that still reports success), skip the cleanup - otherwise a
-      // single bad response would wipe every cached accessory and the user
-      // would lose their HomeKit room assignments and automations.
+      // glitch that still reports success), or we fell back to a previously
+      // saved list after a fetch failure, skip the cleanup - otherwise a
+      // single bad / stale response would wipe accessories and the user would
+      // lose their HomeKit room assignments and automations.
       if (smartAppDevices.length === 0) {
         this.log.info('Smart App returned no devices - skipping cached accessory cleanup. '
           + 'If you really removed every device from your account, remove the stale '
           + 'accessories manually via the Homebridge UI.');
+        return;
+      }
+
+      if (this.smartApp.deviceListFromCache) {
+        this.log.info('Device list came from the last saved snapshot - '
+          + 'skipping cached accessory cleanup.');
         return;
       }
 
