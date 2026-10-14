@@ -4,6 +4,14 @@ All notable changes to this project are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html), and the format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [2.1.2] - 2026-10-14
+
+### Fixed
+- When fetching the device list failed at startup (a temporary cloud error, the rate limit, or a
+  saved session the server no longer accepts), devices stayed in the Home app but couldn't be
+  controlled until Homebridge was restarted. The fetch is now retried every minute until it
+  succeeds. Reported in [#2](https://github.com/tasict/homebridge-panasonic-smart-app/pull/2).
+
 ## [2.1.1] - 2026-09-25
 
 ### Fixed
@@ -87,6 +95,7 @@ All notable changes to this project are documented here. This project adheres to
 ### Dependencies
 - Added `@homebridge/plugin-ui-utils` for the custom settings screen.
 
+[2.1.2]: https://github.com/tasict/homebridge-panasonic-smart-app/releases/tag/v2.1.2
 [2.1.1]: https://github.com/tasict/homebridge-panasonic-smart-app/releases/tag/v2.1.1
 [2.1.0]: https://github.com/tasict/homebridge-panasonic-smart-app/releases/tag/v2.1.0
 [2.0.1]: https://github.com/tasict/homebridge-panasonic-smart-app/releases/tag/v2.0.1

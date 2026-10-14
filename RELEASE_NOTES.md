@@ -1,13 +1,11 @@
-# v2.1.1
+# v2.1.2
 
-A fix for accounts with newer Panasonic appliances. No configuration changes are needed.
+A reliability fix. No configuration changes are needed.
 
 ## Fixed
-- **Settings screen:** *Load devices* failed with "not a valid selector" when the account has a
-  device whose id (GWID) isn't a MAC address. Newer models with built-in Wi-Fi use ids containing
-  `+`, `/` and `=`. These devices now appear with their status and can be included in or excluded
-  from HomeKit like any other.
-- **Local control** only matches devices whose id is a MAC address, so such an id can never be
-  mistaken for a module found on the network.
+- **Devices that couldn't be controlled after a restart:** when Homebridge started while the
+  Panasonic cloud briefly failed to return the device list, devices still appeared in the Home app
+  but didn't respond until Homebridge was restarted again. The plugin now retries every minute and
+  brings them back as soon as the list loads. Thanks to @tiger93064 for reporting it (#2).
 
 **Full changelog:** see [CHANGELOG.md](CHANGELOG.md).
